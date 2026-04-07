@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: pulse-jellyfin
+    ports:
+      - "8096:8096"
+      - "8920:8920"
+    volumes:
+      - ./data/jellyfin/config:/config
+      - ./data/jellyfin/cache:/cache
+      - ./data/media:/media
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: pulse-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pulse_node}
+      POSTGRES_USER: ${POSTGRES_USER:-pulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  node-agent:
+    build:
+      context: ../apps/node-agent
+    container_name: pulse-node-agent
+    depends_on:
+      - postgres
+      - jellyfin
+    env_file: .env
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./data/media:/media
+      - ./data/sync:/sync
+    restart: unless-stopped
+
+  jellyfin-adapter:
+    build:
+      context: ../apps/jellyfin-adapter
+    container_name: pulse-jellyfin-adapter
+    depends_on:
+      - jellyfin
+      - postgres
+    env_file: .env
+    ports:
+      - "3101:3101"
+    restart: unless-stopped
+
+  sync-worker:
+    build:
+      context: ../apps/sync-worker
+    container_name: pulse-sync-worker
+    depends_on:
+      - postgres
+      - node-agent
+    env_file: .env
+    restart: unless-stopped

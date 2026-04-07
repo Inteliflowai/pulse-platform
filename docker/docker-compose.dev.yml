@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  node-agent:
+    build:
+      context: ../apps/node-agent
+      dockerfile: Dockerfile
+    volumes:
+      - ../apps/node-agent/src:/app/src
+      - ./data/media:/media
+      - ./data/sync:/sync
+    command: ["npx", "tsx", "watch", "src/index.ts"]
+
+  jellyfin-adapter:
+    build:
+      context: ../apps/jellyfin-adapter
+      dockerfile: Dockerfile
+    volumes:
+      - ../apps/jellyfin-adapter/src:/app/src
+    command: ["npx", "tsx", "watch", "src/index.ts"]
+
+  sync-worker:
+    build:
+      context: ../apps/sync-worker
+      dockerfile: Dockerfile
+    volumes:
+      - ../apps/sync-worker/src:/app/src
+    command: ["npx", "tsx", "watch", "src/index.ts"]
