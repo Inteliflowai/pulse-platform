@@ -4,15 +4,19 @@
   "private": true,
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file=.env src/index.ts",
     "start": "node dist/index.js",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@pulse/shared": "workspace:*"
+    "@pulse/shared": "workspace:*",
+    "better-sqlite3": "^12.8.0",
+    "express": "^5.2.1"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
-    "typescript": "^5.5.0"
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.6",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

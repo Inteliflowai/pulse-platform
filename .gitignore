@@ -6,3 +6,10 @@ dist/
 .env.local
 *.log
 docker/data/
+apps/*/data/
+apps/*/.env
+*.db
+*.db-shm
+*.db-wal
+*.mp4
+*.mkv

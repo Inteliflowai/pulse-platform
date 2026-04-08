@@ -5,7 +5,15 @@ const config: Config = {
     './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        brand: {
+          primary: '#6366f1',
+          bg: '#0f1117',
+          surface: '#1e2130',
+        },
+      },
+    },
   },
   plugins: [],
 };

@@ -259,5 +259,43 @@ export interface HeartbeatPayload {
   sync_status: 'idle' | 'syncing' | 'error';
   jellyfin_reachable: boolean;
   wan_connected: boolean;
+  cpu_usage_pct: number;
+  memory_used_gb: number;
+  memory_total_gb: number;
+  enrolled_devices: number;
+  pending_sync_jobs: number;
+  completed_sync_jobs_today: number;
+  failed_sync_jobs_today: number;
+  uptime_seconds: number;
+  jellyfin_version: string | null;
+  last_successful_sync_at: string | null;
   metadata?: Record<string, unknown>;
+}
+
+export interface NodeMetric {
+  id: string;
+  node_id: string;
+  recorded_at: string;
+  cpu_pct: number | null;
+  memory_used_gb: number | null;
+  memory_total_gb: number | null;
+  storage_used_gb: number | null;
+  storage_total_gb: number | null;
+  active_sessions: number;
+  enrolled_devices: number;
+  pending_sync_jobs: number;
+  wan_connected: boolean;
+  jellyfin_reachable: boolean;
+}
+
+export interface SoftwareUpdateAssignment {
+  id: string;
+  release_id: string;
+  node_id: string;
+  status: 'pending' | 'downloading' | 'applying' | 'completed' | 'failed' | 'rolled_back';
+  assigned_at: string;
+  completed_at: string | null;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
 }
