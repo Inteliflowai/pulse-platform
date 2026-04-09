@@ -73,6 +73,11 @@ export class JellyfinClient {
     return data?.Items ?? [];
   }
 
+  async getAllItems(): Promise<any[]> {
+    const data = await this.request('/Items?Recursive=true&Fields=Path,MediaSources&IncludeItemTypes=Movie,Video,Episode&Limit=500');
+    return data?.Items ?? [];
+  }
+
   async deleteItem(itemId: string): Promise<void> {
     await this.request(`/Items/${itemId}`, { method: 'DELETE' });
   }

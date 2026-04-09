@@ -1,7 +1,7 @@
 import express from 'express';
 import { HEARTBEAT_INTERVAL_MS } from '@pulse/shared';
 import { log } from './logger';
-import { initDb, getEnrolledDevice, upsertEnrolledDevice, getClassroomCache, upsertClassroomCache, getLocalPackages, getLocalAssets, getEnrolledDeviceCount, getActiveSessionCount, insertPlaybackSession, touchDevice } from './db';
+import { initDb, getEnrolledDevice, upsertEnrolledDevice, getClassroomCache, upsertClassroomCache, getLocalPackages, getLocalAssets, getEnrolledDeviceCount, getActiveSessionCount, insertPlaybackSession, touchDevice, createStudentSession, getStudentSession, clearStudentSession, setConductorState, getConductorState, saveLocalQuizAttempt, cacheSequence, getCachedSequences, getCachedSequence } from './db';
 import { renderClassroomPlayer } from './classroom-player';
 import { sendHeartbeat } from './heartbeat';
 import { startUpdateManager } from './update-manager';
@@ -261,24 +261,40 @@ app.get('/sequences', async (req, res) => {
           }
         }
 
-        enriched.push({
+        const seqData = {
           id: seq.id,
           name: seq.name,
-          grade: (seq as any).grades?.name,
-          subject: (seq as any).subjects?.name,
+          grade: (seq as any).grades?.name ?? '',
+          subject: (seq as any).subjects?.name ?? '',
           items,
-        });
+        };
+        enriched.push(seqData);
+
+        // Cache for offline use
+        try {
+          cacheSequence(seq.id, seq.name, seqData.grade, seqData.subject, seq.grade_id ?? '', seq.subject_id ?? '', items);
+        } catch {}
       }
 
       res.json({ sequences: enriched });
       return;
     }
   } catch {
-    // Cloud unreachable — serve from local
+    // Cloud unreachable — serve from local cache
   }
 
-  // Fallback: no sequences locally yet
-  res.json({ sequences: [] });
+  // Fallback: serve cached sequences
+  const allAssets = getLocalAssets();
+  const assetMap = new Map((allAssets as any[]).map((a: any) => [a.asset_id, a]));
+  const cached = getCachedSequences() as any[];
+  const enriched = cached.map((seq: any) => {
+    const items = (typeof seq.items === 'string' ? JSON.parse(seq.items) : seq.items ?? []).map((item: any) => {
+      const localAsset = item.asset_id ? assetMap.get(item.asset_id) : null;
+      return { ...item, stream_url: localAsset ? `/stream/${item.asset_id}?token=${token}` : null };
+    });
+    return { id: seq.sequence_id, name: seq.name, grade: seq.grade, subject: seq.subject, items };
+  });
+  res.json({ sequences: enriched });
 });
 
 // Get single sequence with items
@@ -321,57 +337,146 @@ app.get('/sequences/:seqId', async (req, res) => {
     }
   } catch {}
 
+  // Fallback: cached sequence
+  const cached = getCachedSequence(req.params.seqId) as any;
+  if (cached) {
+    const allAssets = getLocalAssets();
+    const assetMap = new Map((allAssets as any[]).map((a: any) => [a.asset_id, a]));
+    const items = (typeof cached.items === 'string' ? JSON.parse(cached.items) : cached.items ?? []).map((item: any) => {
+      const localAsset = item.asset_id ? assetMap.get(item.asset_id) : null;
+      return { ...item, stream_url: localAsset ? `/stream/${item.asset_id}?token=${token}` : null };
+    });
+    res.json({ id: cached.sequence_id, name: cached.name, items });
+    return;
+  }
+
   res.status(404).json({ error: 'Sequence not found' });
 });
 
-// ── Quiz submission (local) ──
+// ── Student search + login ──
+app.get('/students/search', async (req, res) => {
+  const token = req.query.token as string;
+  const q = req.query.q as string;
+  if (!token || !q) { res.json({ students: [] }); return; }
+
+  const device = getEnrolledDevice(token) as EnrolledDevice | null;
+  if (!device) { res.status(401).json({ error: 'Invalid token' }); return; }
+
+  // Search students from cloud
+  try {
+    const cloudRes = await fetch(`${CLOUD_API_URL}/api/curriculum`, { signal: AbortSignal.timeout(5000) });
+    if (!cloudRes.ok) { res.json({ students: [] }); return; }
+
+    // For now, search users with role 'student' from the cloud
+    // In production, this should use a dedicated student search endpoint
+    res.json({ students: [] }); // Students need to be provisioned first
+  } catch {
+    res.json({ students: [] });
+  }
+});
+
+app.post('/students/login', (req, res) => {
+  const { token, student_id, student_number } = req.body;
+  if (!token) { res.status(400).json({ error: 'Missing token' }); return; }
+
+  const device = getEnrolledDevice(token) as EnrolledDevice | null;
+  if (!device) { res.status(401).json({ error: 'Invalid token' }); return; }
+
+  // For beta: accept student number directly and create a session
+  const sid = student_id || crypto.randomUUID();
+  const name = student_number || 'Student';
+
+  try {
+    createStudentSession(crypto.randomUUID(), token, sid, name, student_number || '', '', []);
+  } catch {}
+
+  log('info', 'Student logged in', { student_id: sid, student_name: name, device_id: device.device_id });
+
+  res.json({ student: { id: sid, name, student_number: student_number || '', grade_id: '', class_group_ids: [] } });
+});
+
+app.post('/students/logout', (req, res) => {
+  const { token } = req.body;
+  if (token) { try { clearStudentSession(token); } catch {} }
+  res.json({ ok: true });
+});
+
+// ── Quiz submission ──
 app.post('/quiz/submit', (req, res) => {
-  const { token, quiz_id, answers, score, max_score, percentage, passed, time_spent } = req.body;
+  const { token, quiz_id, answers, score, max_score, percentage, passed, time_spent, student_id, student_name } = req.body;
   if (!token || !quiz_id) { res.status(400).json({ error: 'Missing fields' }); return; }
 
   const device = getEnrolledDevice(token) as EnrolledDevice | null;
   if (!device) { res.status(401).json({ error: 'Invalid token' }); return; }
 
-  log('info', 'Quiz submitted', { quiz_id, score, max_score, percentage, passed, device_id: device.device_id });
+  const attemptId = crypto.randomUUID();
+  log('info', 'Quiz submitted', { quiz_id, score, max_score, percentage, passed, student_id, student_name });
 
-  // Store locally for sync to cloud later
+  // Save locally
   try {
-    const db = require('./db');
-    // Use a simple insert into local_playback_sessions as a proxy for quiz results
-    // In production, this would go to a local quiz_attempts table
-    insertPlaybackSession(crypto.randomUUID(), device.device_id, quiz_id);
-  } catch {}
+    saveLocalQuizAttempt(attemptId, quiz_id, student_id || device.device_id, student_name || 'Unknown', score, max_score, percentage, passed, answers);
+  } catch (e: any) { log('warning', 'Failed to save quiz attempt locally', { error: e.message }); }
 
-  // Try to sync to cloud immediately
+  // Sync to cloud
   fetch(`${CLOUD_API_URL}/api/progress`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       quiz_attempts: [{
-        id: crypto.randomUUID(),
-        quiz_id,
-        student_id: device.device_id,
-        score,
-        max_score,
-        percentage,
-        passed,
-        status: 'completed',
+        id: attemptId, quiz_id, student_id: student_id || device.device_id,
+        score, max_score, percentage, passed, status: 'completed',
         completed_at: new Date().toISOString(),
-        responses: Object.entries(answers).map(([qId, optId]) => ({
-          id: crypto.randomUUID(),
-          question_id: qId,
-          answer: optId,
-          is_correct: null,
-          points_earned: 0,
+        responses: Object.entries(answers || {}).map(([qId, optId]) => ({
+          id: crypto.randomUUID(), question_id: qId, answer: optId, is_correct: null, points_earned: 0,
         })),
       }],
     }),
-  }).catch(() => { log('warning', 'Could not sync quiz results to cloud'); });
+  }).catch(() => { log('warning', 'Could not sync quiz to cloud'); });
 
   res.json({ ok: true, score, max_score, percentage, passed });
 });
 
-// ── Conductor session (teacher controls) ──
+// ── Conductor state (for student devices to poll) ──
+app.get('/conductor/state', (req, res) => {
+  const token = req.query.token as string;
+  if (!token) { res.json({ active: false }); return; }
+  const device = getEnrolledDevice(token) as EnrolledDevice | null;
+  if (!device) { res.json({ active: false }); return; }
+
+  const state = getConductorState(device.classroom_id) as any;
+  if (state && state.status === 'active') {
+    res.json({ active: true, sequence_id: state.sequence_id, current_item_index: state.current_item_index });
+  } else {
+    res.json({ active: false });
+  }
+});
+
+// ── Conductor control (teacher pushes state) ──
+app.post('/conductor/update', (req, res) => {
+  const { token, classroom_id, sequence_id, current_item_index, status } = req.body;
+  if (!token || !classroom_id || !sequence_id) { res.status(400).json({ error: 'Missing fields' }); return; }
+
+  const device = getEnrolledDevice(token) as EnrolledDevice | null;
+  if (!device) { res.status(401).json({ error: 'Invalid token' }); return; }
+
+  setConductorState(classroom_id, sequence_id, current_item_index ?? 0, status ?? 'active', device.device_id);
+  log('info', 'Conductor state updated', { classroom_id, sequence_id, current_item_index });
+
+  res.json({ ok: true });
+});
+
+app.post('/conductor/end', (req, res) => {
+  const { token, classroom_id } = req.body;
+  if (!token || !classroom_id) { res.status(400).json({ error: 'Missing fields' }); return; }
+
+  const state = getConductorState(classroom_id) as any;
+  if (state) {
+    setConductorState(classroom_id, state.sequence_id, state.current_item_index, 'completed', state.teacher_id);
+  }
+  res.json({ ok: true });
+});
+
+// ── Conductor page (teacher view) ──
 app.get('/conductor', async (req, res) => {
   const token = req.query.token as string;
   if (!token) { res.status(400).send(errorPage('Missing token')); return; }
@@ -418,7 +523,7 @@ window.selectSeq=function(id){
 };
 function renderConductor(){
   var items=currentSeq.items||[];
-  var h='<h2>'+currentSeq.name+'</h2><div class="controls"><button class="btn" onclick="goPrev()">&#9664; Previous</button><button class="btn" onclick="goNext()">Next &#9654;</button><button class="btn btn-outline" onclick="load()">Back</button></div>';
+  var h='<h2>'+currentSeq.name+'</h2><div class="controls"><button class="btn" onclick="goPrev()">&#9664; Previous</button><button class="btn" onclick="goNext()">Next &#9654;</button><button class="btn btn-outline" onclick="endSession()">End Session</button><button class="btn btn-outline" onclick="load()">Back</button></div>';
   h+='<div class="item-list">';
   items.forEach(function(it,i){
     h+='<div class="item'+(i===currentIdx?' active':'')+'" onclick="goTo('+i+')"><div class="item-num">'+(i+1)+'</div><div><div style="font-weight:500;font-size:13px">'+it.title+'</div><div style="font-size:11px;color:#9ca3af">'+it.item_type+'</div></div></div>';
@@ -430,9 +535,15 @@ function renderConductor(){
   }
   document.getElementById('content').innerHTML=h;
 }
-window.goNext=function(){if(currentSeq&&currentIdx<(currentSeq.items||[]).length-1){currentIdx++;renderConductor();}};
-window.goPrev=function(){if(currentIdx>0){currentIdx--;renderConductor();}};
-window.goTo=function(i){currentIdx=i;renderConductor();};
+function pushState(){
+  fetch('/conductor/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,classroom_id:currentSeq.classroom_id||'default',sequence_id:currentSeq.id,current_item_index:currentIdx,status:'active'})}).catch(function(){});
+}
+window.goNext=function(){if(currentSeq&&currentIdx<(currentSeq.items||[]).length-1){currentIdx++;pushState();renderConductor();}};
+window.goPrev=function(){if(currentIdx>0){currentIdx--;pushState();renderConductor();}};
+window.goTo=function(i){currentIdx=i;pushState();renderConductor();};
+window.endSession=function(){
+  fetch('/conductor/end',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,classroom_id:currentSeq.classroom_id||'default'})}).then(function(){load()}).catch(function(){});
+};
 load();
 </script></body></html>`;
 }

@@ -32,6 +32,8 @@ const navItems = [
   { label: 'Schools & Nodes', href: '/dashboard/school', icon: School, roles: ['super_admin', 'tenant_admin', 'site_admin'] },
   { label: 'Classrooms', href: '/dashboard/school/classrooms', icon: DoorOpen, roles: ['super_admin', 'tenant_admin', 'site_admin'] },
   { label: 'Curriculum', href: '/dashboard/school/curriculum', icon: GraduationCap, roles: ['super_admin', 'tenant_admin', 'site_admin', 'teacher'] },
+  { label: 'Results', href: '/dashboard/school/results', icon: FileText, roles: ['super_admin', 'tenant_admin', 'site_admin', 'teacher'] },
+  { label: 'Progress', href: '/dashboard/school/progress', icon: Activity, roles: ['super_admin', 'tenant_admin', 'site_admin', 'teacher'] },
   { label: 'Content', href: '/dashboard/content', icon: Package, roles: ['super_admin', 'tenant_admin', 'site_admin', 'content_manager'] },
   { label: 'Devices', href: '/dashboard/devices', icon: Monitor, roles: ['super_admin', 'tenant_admin', 'site_admin'] },
   { label: 'Users', href: '/dashboard/school/users', icon: Users, roles: ['super_admin', 'tenant_admin', 'site_admin'] },

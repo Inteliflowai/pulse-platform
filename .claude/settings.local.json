@@ -20,7 +20,9 @@
       "Read(//v/pulse/**)",
       "Bash(npx -y json jobs.length)",
       "Bash(npx -y json 'jobs[*].id')",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

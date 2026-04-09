@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
+import { dirname, basename } from 'path';
 import { JellyfinClient } from './jellyfin-client';
 
 const MAP_FILE = 'data/jellyfin-map.json';
@@ -37,7 +37,13 @@ export class PulseAssetMapper {
   }
 
   async registerAsset(pulseAssetId: string, localFilePath: string): Promise<{ jellyfinItemId: string; streamUrl: string }> {
-    // Trigger a library refresh so Jellyfin picks up the file
+    // Check if already mapped
+    if (this.map[pulseAssetId]) {
+      const streamUrl = await this.jellyfin.getStreamUrl(this.map[pulseAssetId], 'pulse-adapter');
+      return { jellyfinItemId: this.map[pulseAssetId], streamUrl };
+    }
+
+    // Trigger library refresh
     const libraries = await this.jellyfin.getLibraries();
     for (const lib of libraries) {
       if (lib.ItemId) {
@@ -45,17 +51,34 @@ export class PulseAssetMapper {
       }
     }
 
-    // Poll until the item appears (max 30 seconds)
+    // Poll for the item — use recursive item listing with Path field
+    // and match by the file path or filename within the path
     let jellyfinItemId: string | null = null;
-    const filename = localFilePath.split('/').pop() ?? localFilePath;
+    const filename = basename(localFilePath.replace(/\\/g, '/'));
+    // Normalize: Jellyfin uses backslashes on Windows paths
+    const normalizedPath = localFilePath.replace(/\//g, '\\');
 
-    for (let i = 0; i < 15; i++) {
+    for (let attempt = 0; attempt < 30; attempt++) {
       await new Promise((r) => setTimeout(r, 2000));
 
-      const items = await this.jellyfin.getItemsByPath(filename);
-      if (items.length > 0) {
-        jellyfinItemId = items[0].Id;
-        break;
+      // Search all items recursively, match by path containing our asset ID or filename
+      const allItems = await this.jellyfin.getAllItems();
+      for (const item of allItems) {
+        if (!item.Path) continue;
+        // Match by pulseAssetId in path (UUID folder) or exact filename
+        if (item.Path.includes(pulseAssetId) || item.Path.endsWith(filename) || item.Path.endsWith(normalizedPath.split('\\').pop() ?? '')) {
+          jellyfinItemId = item.Id;
+          break;
+        }
+      }
+
+      if (jellyfinItemId) break;
+
+      // Re-trigger refresh every 10 attempts
+      if (attempt > 0 && attempt % 10 === 0) {
+        for (const lib of libraries) {
+          if (lib.ItemId) await this.jellyfin.refreshLibrary(lib.ItemId);
+        }
       }
     }
 

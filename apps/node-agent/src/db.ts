@@ -65,6 +65,51 @@ export function initDb() {
       created_at       TEXT DEFAULT (datetime('now')),
       updated_at       TEXT DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS student_sessions (
+      id              TEXT PRIMARY KEY,
+      device_token    TEXT NOT NULL,
+      student_id      TEXT NOT NULL,
+      student_name    TEXT,
+      student_number  TEXT,
+      grade_id        TEXT,
+      class_group_ids TEXT DEFAULT '[]',
+      created_at      TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS conductor_state (
+      classroom_id      TEXT PRIMARY KEY,
+      sequence_id       TEXT NOT NULL,
+      current_item_index INTEGER DEFAULT 0,
+      status            TEXT DEFAULT 'active',
+      teacher_id        TEXT,
+      updated_at        TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS cached_sequences (
+      sequence_id   TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      grade         TEXT,
+      subject       TEXT,
+      grade_id      TEXT,
+      subject_id    TEXT,
+      status        TEXT DEFAULT 'published',
+      items         TEXT DEFAULT '[]',
+      cached_at     TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS local_quiz_attempts (
+      id              TEXT PRIMARY KEY,
+      quiz_id         TEXT NOT NULL,
+      student_id      TEXT NOT NULL,
+      student_name    TEXT,
+      score           REAL,
+      max_score       REAL,
+      percentage      REAL,
+      passed          INTEGER DEFAULT 0,
+      answers         TEXT DEFAULT '{}',
+      completed_at    TEXT DEFAULT (datetime('now')),
+      synced_to_cloud INTEGER DEFAULT 0
+    );
   `);
   log('info', 'Local SQLite database initialized', { path: DB_PATH });
 }
@@ -115,4 +160,69 @@ export function insertPlaybackSession(id: string, deviceId: string, assetId: str
 
 export function touchDevice(token: string, ip: string) {
   db.prepare("UPDATE enrolled_devices SET last_seen_at = datetime('now'), ip_address = ? WHERE local_session_token = ?").run(ip, token);
+}
+
+// Student sessions
+export function createStudentSession(id: string, deviceToken: string, studentId: string, studentName: string, studentNumber: string, gradeId: string, classGroupIds: string[]) {
+  db.prepare(
+    `INSERT INTO student_sessions (id, device_token, student_id, student_name, student_number, grade_id, class_group_ids)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET student_name = excluded.student_name, class_group_ids = excluded.class_group_ids`
+  ).run(id, deviceToken, studentId, studentName, studentNumber, gradeId, JSON.stringify(classGroupIds));
+}
+
+export function getStudentSession(deviceToken: string) {
+  return db.prepare('SELECT * FROM student_sessions WHERE device_token = ? ORDER BY created_at DESC LIMIT 1').get(deviceToken) ?? null;
+}
+
+export function clearStudentSession(deviceToken: string) {
+  db.prepare('DELETE FROM student_sessions WHERE device_token = ?').run(deviceToken);
+}
+
+// Conductor state
+export function setConductorState(classroomId: string, sequenceId: string, currentItemIndex: number, status: string, teacherId: string) {
+  db.prepare(
+    `INSERT INTO conductor_state (classroom_id, sequence_id, current_item_index, status, teacher_id, updated_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(classroom_id) DO UPDATE SET sequence_id = excluded.sequence_id, current_item_index = excluded.current_item_index, status = excluded.status, updated_at = datetime('now')`
+  ).run(classroomId, sequenceId, currentItemIndex, status, teacherId);
+}
+
+export function getConductorState(classroomId: string) {
+  return db.prepare('SELECT * FROM conductor_state WHERE classroom_id = ? AND status != ?').get(classroomId, 'completed') ?? null;
+}
+
+// Sequence caching
+export function cacheSequence(seqId: string, name: string, grade: string, subject: string, gradeId: string, subjectId: string, items: any[]) {
+  db.prepare(
+    `INSERT INTO cached_sequences (sequence_id, name, grade, subject, grade_id, subject_id, items, cached_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(sequence_id) DO UPDATE SET name=excluded.name, grade=excluded.grade, subject=excluded.subject, items=excluded.items, cached_at=datetime('now')`
+  ).run(seqId, name, grade, subject, gradeId, subjectId, JSON.stringify(items));
+}
+
+export function getCachedSequences(): any[] {
+  return db.prepare("SELECT * FROM cached_sequences WHERE status = 'published'").all();
+}
+
+export function getCachedSequence(seqId: string): any {
+  return db.prepare('SELECT * FROM cached_sequences WHERE sequence_id = ?').get(seqId) ?? null;
+}
+
+// Local quiz attempts
+export function saveLocalQuizAttempt(id: string, quizId: string, studentId: string, studentName: string, score: number, maxScore: number, percentage: number, passed: boolean, answers: any) {
+  db.prepare(
+    `INSERT INTO local_quiz_attempts (id, quiz_id, student_id, student_name, score, max_score, percentage, passed, answers)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, quizId, studentId, studentName, score, maxScore, percentage, passed ? 1 : 0, JSON.stringify(answers));
+}
+
+export function getUnsyncedQuizAttempts() {
+  return db.prepare('SELECT * FROM local_quiz_attempts WHERE synced_to_cloud = 0').all();
+}
+
+export function markQuizAttemptsSynced(ids: string[]) {
+  if (ids.length === 0) return;
+  const placeholders = ids.map(() => '?').join(',');
+  db.prepare(`UPDATE local_quiz_attempts SET synced_to_cloud = 1 WHERE id IN (${placeholders})`).run(...ids);
 }
