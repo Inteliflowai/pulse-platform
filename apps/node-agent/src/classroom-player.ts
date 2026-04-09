@@ -55,6 +55,30 @@ export function renderClassroomPlayer(classroomName: string, token: string, node
 .ag{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:14px 18px}
 .ai{background:#0f1117;border:1px solid #374151;border-radius:8px;padding:12px;transition:border-color .2s}.ai:hover{border-color:#6366f1}
 .em{text-align:center;padding:60px 20px;color:#6b7280}
+@media(max-width:640px){
+.hdr{padding:8px 12px}.hdr h1{font-size:14px}.li{width:24px;height:24px;font-size:12px}
+.ct{padding:12px}
+.lc{padding:24px;margin:0 8px}.lc h2{font-size:18px}.lc input{padding:10px 12px;font-size:13px}
+.btn{padding:10px 16px;font-size:13px;min-height:44px}
+.bs{padding:8px 14px;min-height:40px}
+.sp{flex:0 0 36px;height:36px;font-size:10px}
+.cn{width:10px}
+.vc{aspect-ratio:16/9;border-radius:8px}
+.op{padding:12px 14px;min-height:44px}
+.qu{padding:12px}
+.qx{font-size:13px}
+.pk{margin-bottom:12px}.ph{padding:10px 14px}
+.ag{grid-template-columns:1fr;padding:10px 14px;gap:8px}
+.ai{padding:10px}
+.sc{width:100px;height:100px;font-size:28px}
+.si{padding:12px 14px;min-height:44px}
+.tl{gap:2px}
+}
+@media(max-width:380px){
+.hdr h1{font-size:12px}.ct{padding:8px}
+.ag{grid-template-columns:1fr}
+.sp{flex:0 0 32px;height:32px}
+}
 </style></head><body>
 <div class="hdr"><div class="logo"><div class="li">P</div><h1>${classroomName}</h1></div><div id="hr"><div class="st"><div class="dot ${nodeStatus === 'online' ? 'on' : 'off'}"></div><span>${nodeStatus === 'online' ? 'Online' : 'Offline'}</span></div></div></div>
 <div class="ct" id="ct"><div class="em">Loading...</div></div>
