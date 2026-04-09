@@ -3,7 +3,7 @@
  * Translations are embedded inline (no external CDN dependencies).
  */
 
-export type Locale = 'en' | 'fr' | 'pt' | 'sw' | 'zu' | 'af';
+export type Locale = 'en' | 'fr' | 'pt' | 'sw' | 'zu' | 'af' | 'es';
 
 export const translations: Record<Locale, Record<string, string>> = {
   en: {
@@ -245,6 +245,46 @@ export const translations: Record<Locale, Record<string, string>> = {
     not_found: 'Nie gevind nie',
     quiz_not_loaded: 'Toets nie gelaai nie',
     open_document: 'Maak dokument oop',
+  },
+  es: {
+    welcome: 'Bienvenido',
+    sign_in: 'Iniciar sesión',
+    enter_student_number: 'Ingresa tu número de estudiante para comenzar',
+    student_number_placeholder: 'Número o nombre del estudiante',
+    no_students_found: 'No se encontraron estudiantes',
+    switch: 'Cambiar',
+    online: 'En línea',
+    offline: 'Sin conexión',
+    your_learning_content: 'Tu contenido de aprendizaje',
+    sequences_available: 'secuencia(s) disponible(s)',
+    items: 'elementos',
+    no_content: 'No hay contenido disponible',
+    play: 'Reproducir',
+    open: 'Abrir',
+    next: 'Siguiente',
+    back: 'Atrás',
+    submit: 'Enviar respuestas',
+    question: 'Pregunta',
+    questions: 'preguntas',
+    passed: 'Aprobado',
+    try_again: 'Inténtalo de nuevo',
+    correct: 'correcto(s)',
+    continue: 'Continuar',
+    complete: '¡Completado!',
+    well_done: 'Bien hecho',
+    back_to_content: 'Volver al contenido',
+    not_available: 'No disponible',
+    not_available_offline: 'No disponible sin conexión',
+    short_break: 'Toma un breve descanso',
+    min_break: 'minutos de descanso',
+    teacher_led: 'Sesión dirigida por el profesor',
+    teacher_conducting: 'El profesor está dirigiendo una sesión',
+    auto_advance: 'El contenido avanzará automáticamente',
+    loading: 'Cargando...',
+    login_failed: 'Error al iniciar sesión',
+    not_found: 'No encontrado',
+    quiz_not_loaded: 'Cuestionario no cargado',
+    open_document: 'Abrir documento',
   },
 };
 
