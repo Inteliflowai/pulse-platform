@@ -23,6 +23,7 @@ const JELLYFIN_ADAPTER_URL = process.env.JELLYFIN_ADAPTER_URL ?? 'http://jellyfi
 
 const app = express();
 app.use(express.json());
+app.use(express.static('public'));
 
 // Rate limiter for enrollment: 10 req/min per IP
 const enrollRateMap = new Map<string, { count: number; resetAt: number }>();

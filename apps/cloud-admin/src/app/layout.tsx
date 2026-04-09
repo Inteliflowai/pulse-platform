@@ -5,8 +5,9 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Pulse Cloud Admin',
-  description: 'Inteliflow Pulse — Cloud Control Plane',
+  title: 'Pulse — Learning, Delivery Infrastructure',
+  description: 'Inteliflow Pulse — Learning, Delivery Infrastructure',
+  icons: { icon: '/pulse-logo.png' },
 };
 
 export default function RootLayout({

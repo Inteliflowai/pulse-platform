@@ -51,15 +51,10 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mb-4 flex justify-center">
-            <div className="flex items-center gap-2">
-              <div className="h-10 w-10 rounded-lg bg-brand-primary flex items-center justify-center">
-                <span className="text-xl font-bold text-white">P</span>
-              </div>
-              <span className="text-2xl font-bold text-gray-100">Pulse</span>
-            </div>
+            <img src="/pulse-logo.png" alt="Pulse" className="h-14 w-auto" />
           </div>
           <CardTitle className="text-xl">Sign in</CardTitle>
-          <CardDescription>Inteliflow Pulse Control Plane</CardDescription>
+          <CardDescription>Learning, Delivery Infrastructure</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">

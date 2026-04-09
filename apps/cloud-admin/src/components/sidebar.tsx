@@ -78,11 +78,8 @@ export function Sidebar({ user }: SidebarProps) {
         )}
       >
         {/* Logo */}
-        <div className="flex h-16 items-center gap-3 border-b border-gray-700 px-6">
-          <div className="h-8 w-8 rounded-lg bg-brand-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-lg font-bold text-white">P</span>
-          </div>
-          <span className="text-lg font-bold text-gray-100">Pulse</span>
+        <div className="flex h-16 items-center border-b border-gray-700 px-4">
+          <img src="/pulse-logo.png" alt="Pulse" className="h-10 w-auto" />
         </div>
 
         {/* Navigation */}

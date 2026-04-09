@@ -80,7 +80,7 @@ export function renderClassroomPlayer(classroomName: string, token: string, node
 .sp{flex:0 0 32px;height:32px}
 }
 </style></head><body>
-<div class="hdr"><div class="logo"><div class="li">P</div><h1>${classroomName}</h1></div><div id="hr"><div class="st"><div class="dot ${nodeStatus === 'online' ? 'on' : 'off'}"></div><span>${nodeStatus === 'online' ? 'Online' : 'Offline'}</span></div></div></div>
+<div class="hdr"><div class="logo"><img src="/pulse-logo.png" alt="Pulse" style="height:28px;width:auto;margin-right:8px" onerror="this.outerHTML='<div class=li>P</div>'"><h1>${classroomName}</h1></div><div id="hr"><div class="st"><div class="dot ${nodeStatus === 'online' ? 'on' : 'off'}"></div><span>${nodeStatus === 'online' ? 'Online' : 'Offline'}</span></div></div></div>
 <div class="ct" id="ct"><div class="em">Loading...</div></div>
 <script>
 (function(){
@@ -88,7 +88,7 @@ var T='${token}',S=null,CS=null,CI=0,QS=null,CD=null;
 var sv=localStorage.getItem('ps_'+T);if(sv){try{S=JSON.parse(sv)}catch{}}
 function init(){if(!S){showLogin();return;}updHdr();loadC();setInterval(pollCD,5000);setInterval(loadC,60000)}
 function showLogin(){
-  var h='<div class="ls"><div class="lc"><div style="width:48px;height:48px;background:#6366f1;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:24px;margin:0 auto 16px">P</div>';
+  var h='<div class="ls"><div class="lc"><img src="/pulse-logo.png" alt="Pulse" style="height:48px;width:auto;margin:0 auto 16px;display:block" onerror="this.style.display=\\'none\\'">';
   h+='<h2>Welcome</h2><p>Enter your student number to get started</p>';
   h+='<input id="si" placeholder="Student number or name" autofocus />';
   h+='<div id="slist" class="sl"></div>';
