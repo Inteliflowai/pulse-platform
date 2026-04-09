@@ -5,6 +5,7 @@ import { initDb, getEnrolledDevice, upsertEnrolledDevice, getClassroomCache, ups
 import { renderClassroomPlayer } from './classroom-player';
 import { sendHeartbeat } from './heartbeat';
 import { startUpdateManager } from './update-manager';
+import { createBackup, restoreBackup, listBackups, startAutoBackup } from './backup';
 
 interface EnrolledDevice {
   device_id: string;
@@ -548,6 +549,25 @@ load();
 </script></body></html>`;
 }
 
+// ── Backup endpoints ──
+app.post('/backup', (_req, res) => {
+  const path = createBackup();
+  if (path) res.json({ ok: true, path });
+  else res.status(500).json({ error: 'Backup failed' });
+});
+
+app.get('/backups', (_req, res) => {
+  res.json({ backups: listBackups() });
+});
+
+app.post('/restore', (req, res) => {
+  const { filename } = req.body;
+  if (!filename) { res.status(400).json({ error: 'Missing filename' }); return; }
+  const success = restoreBackup(filename);
+  if (success) res.json({ ok: true });
+  else res.status(500).json({ error: 'Restore failed' });
+});
+
 // ── Error page helper ──
 function errorPage(message: string): string {
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pulse</title>
@@ -573,6 +593,7 @@ async function main() {
   setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
   sendHeartbeat();
   startUpdateManager();
+  startAutoBackup();
 }
 
 main();
