@@ -323,7 +323,7 @@ function Header() {
           <a href="#architecture" style={{ color: BRAND.muted, fontWeight: 600, fontSize: 14 }}>Architecture</a>
           <a href="#platform" style={{ color: BRAND.muted, fontWeight: 600, fontSize: 14 }}>Platform</a>
           <a
-            href="https://pulse.inteliflowai.com/login"
+            href="#contact"
             style={{
               padding: "14px 18px",
               borderRadius: 999,
@@ -333,7 +333,7 @@ function Header() {
               boxShadow: "0 10px 30px rgba(236,72,153,0.35)",
             }}
           >
-            Sign In
+            Contact Us
           </a>
         </nav>
       </div>
@@ -362,7 +362,7 @@ function Hero() {
             }}
           >
             <div style={{ width: 8, height: 8, borderRadius: 999, background: "#10b981", animation: "pulse-glow 2s ease-in-out infinite" }} />
-            <span style={{ fontSize: 12, color: BRAND.muted }}>Part of the Inteliflow Learning Platform</span>
+            <span style={{ fontSize: 12, color: BRAND.muted }}>Part of the Inteliflow Learning Ecosystem</span>
           </div>
 
           <h1 className="p-title" style={{ fontSize: 72, lineHeight: 0.95, letterSpacing: -2.8, color: BRAND.text, margin: 0 }}>
@@ -389,7 +389,7 @@ function Hero() {
 
           <div className="p-hero-btns" style={{ marginTop: 26, display: "flex", gap: 14, flexWrap: "wrap" }}>
             <a
-              href="https://pulse.inteliflowai.com/login"
+              href="#contact"
               style={{
                 padding: "16px 22px",
                 borderRadius: 999,
@@ -537,8 +537,8 @@ function Features() {
 function HowItWorks() {
   const steps = [
     { step: "01", title: "Upload & Package", desc: "Upload video lessons and documents to the cloud. Bundle them into packages with quizzes. Assign to grades and subjects.", color: BRAND.magenta },
-    { step: "02", title: "Sync to Nodes", desc: "Push packages to school nodes. The sync worker downloads, verifies checksums, and registers with Jellyfin — automatically.", color: BRAND.orange },
-    { step: "03", title: "Learn Anywhere", desc: "Students enroll devices, log in, and learn. Videos stream locally from Jellyfin. Quizzes auto-trigger after videos. Works fully offline.", color: "#10b981" },
+    { step: "02", title: "Sync to Nodes", desc: "Push packages to school nodes. The sync worker downloads, verifies checksums, and registers with Pulse — automatically.", color: BRAND.orange },
+    { step: "03", title: "Learn Anywhere", desc: "Students enroll devices, log in, and learn. Videos stream locally from Pulse. Quizzes auto-trigger after videos. Works fully offline.", color: "#10b981" },
   ];
 
   return (
@@ -591,7 +591,7 @@ function Architecture() {
           <div style={{ color: "#fb7185", fontSize: 12, textTransform: "uppercase", letterSpacing: 2, fontWeight: 700 }}>School Node (On-Prem)</div>
           <div style={{ marginTop: 20, display: "grid", gap: 14 }}>
             {[
-              "Jellyfin media server for local video streaming",
+              "Pulse media server for local video streaming",
               "Sync worker downloads & verifies content automatically",
               "Classroom player — works 100% offline after first sync",
               "Device enrollment with QR codes",
@@ -616,8 +616,8 @@ function PlatformSection() {
 
       <Glass className="if-card-hover" style={{ padding: 34, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "relative", zIndex: 2 }}>
-          <div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>Part of the Inteliflow Platform</div>
-          <h2 style={{ marginTop: 12, fontSize: 42, lineHeight: 1.08, color: BRAND.text }}>Pulse Works Better With the Full Platform</h2>
+          <div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>Part of the Inteliflow Ecosystem</div>
+          <h2 style={{ marginTop: 12, fontSize: 42, lineHeight: 1.08, color: BRAND.text }}>Pulse Works Better With the Full Ecosystem</h2>
           <p style={{ marginTop: 14, maxWidth: 900, color: BRAND.muted, fontSize: 18, lineHeight: 1.85 }}>
             Pulse handles delivery. But when combined with LIFT (admissions insight), CORE (classroom learning), and SPARK (hands-on discovery), you get a complete connected learning ecosystem.
           </p>
@@ -656,7 +656,7 @@ function PlatformSection() {
                 boxShadow: "0 10px 30px rgba(236,72,153,0.35)",
               }}
             >
-              Explore the Full Platform
+              Explore the Full Ecosystem
             </a>
 
             <a
@@ -670,7 +670,21 @@ function PlatformSection() {
                 fontWeight: 700,
               }}
             >
-              Visit LIFT Admissions
+              Visit LIFT
+            </a>
+
+            <a
+              href="https://inteliflowai.com/core/"
+              style={{
+                padding: "16px 22px",
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.14)",
+                border: `1px solid ${BRAND.line}`,
+                color: BRAND.text,
+                fontWeight: 700,
+              }}
+            >
+              Visit CORE
             </a>
           </div>
         </div>
@@ -679,53 +693,64 @@ function PlatformSection() {
   );
 }
 
-function CTASection() {
+function ContactForm() {
   return (
-    <Section id="cta" style={{ paddingBottom: 16 }}>
-      <Glass className="if-card-hover" style={{ padding: 38, position: "relative", overflow: "hidden", textAlign: "center" }}>
+    <Section id="contact" style={{ paddingBottom: 16 }}>
+      <Glass className="if-card-hover" style={{ padding: 38, position: "relative", overflow: "hidden" }}>
         <Glow left={-20} top={-20} size={180} from={BRAND.magenta} to={BRAND.sky} />
         <Glow right={-20} bottom={-20} size={220} from={BRAND.orange} to={BRAND.purple} />
 
         <div style={{ position: "relative", zIndex: 2 }}>
-          <div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>Get started</div>
-          <h2 style={{ marginTop: 12, fontSize: 42, lineHeight: 1.08, color: BRAND.text }}>Ready to Bring Learning Infrastructure to Your Schools?</h2>
-          <p style={{ marginTop: 14, color: BRAND.muted, fontSize: 18, lineHeight: 1.85, maxWidth: 700, marginInline: "auto" }}>
-            Set up your first school node in under 10 minutes. No disruption to existing workflows.
-          </p>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>Get started</div>
+            <h2 style={{ marginTop: 12, fontSize: 42, lineHeight: 1.08, color: BRAND.text }}>Ready to Bring Learning Infrastructure to Your Schools?</h2>
+            <p style={{ marginTop: 14, color: BRAND.muted, fontSize: 18, lineHeight: 1.85, maxWidth: 700, marginInline: "auto" }}>
+              Tell us about your school and we'll show you how Pulse can work for you.
+            </p>
+          </div>
 
-          <div className="p-hero-btns" style={{ marginTop: 22, display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-            <a
-              href="https://pulse.inteliflowai.com/login"
-              style={{
-                padding: "18px 26px",
-                borderRadius: 999,
-                background: `linear-gradient(135deg, ${BRAND.magenta}, ${BRAND.orange})`,
-                color: BRAND.white,
-                fontWeight: 800,
-                boxShadow: "0 10px 30px rgba(236,72,153,0.35)",
-              }}
-            >
-              Sign In to Pulse
-            </a>
+          <form
+            style={{ marginTop: 28, maxWidth: 520, marginInline: "auto", display: "grid", gap: 14 }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              const name = fd.get("name") || "";
+              const school = fd.get("school") || "";
+              const email = fd.get("email") || "";
+              const role = fd.get("role") || "";
+              const message = fd.get("message") || "";
+              const subject = encodeURIComponent("Pulse Inquiry: " + (school || "New School"));
+              const body = encodeURIComponent("Name: " + name + "\nSchool: " + school + "\nEmail: " + email + "\nRole: " + role + "\n\nMessage:\n" + message);
+              window.location.href = "mailto:info@inteliflowai.com?subject=" + subject + "&body=" + body;
+            }}
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <input name="name" placeholder="Full Name" required style={{ padding: "14px 16px", borderRadius: 14, border: "1px solid " + BRAND.line, background: "rgba(255,255,255,0.10)", color: BRAND.text, fontSize: 14 }} />
+              <input name="email" type="email" placeholder="Work Email" required style={{ padding: "14px 16px", borderRadius: 14, border: "1px solid " + BRAND.line, background: "rgba(255,255,255,0.10)", color: BRAND.text, fontSize: 14 }} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <input name="school" placeholder="School / Organization" required style={{ padding: "14px 16px", borderRadius: 14, border: "1px solid " + BRAND.line, background: "rgba(255,255,255,0.10)", color: BRAND.text, fontSize: 14 }} />
+              <select name="role" style={{ padding: "14px 16px", borderRadius: 14, border: "1px solid " + BRAND.line, background: "rgba(255,255,255,0.10)", color: BRAND.muted, fontSize: 14 }}>
+                <option value="">Your Role</option>
+                <option value="School Leader">School Leader</option>
+                <option value="IT Director">IT Director</option>
+                <option value="Teacher">Teacher</option>
+                <option value="District Admin">District Admin</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <textarea name="message" placeholder="Tell us about your school and what you're looking for..." rows={4} style={{ padding: "14px 16px", borderRadius: 14, border: "1px solid " + BRAND.line, background: "rgba(255,255,255,0.10)", color: BRAND.text, fontSize: 14, resize: "vertical" }} />
+            <button type="submit" style={{ padding: "16px 24px", borderRadius: 999, background: "linear-gradient(135deg, " + BRAND.magenta + ", " + BRAND.orange + ")", color: BRAND.white, fontWeight: 800, border: 0, cursor: "pointer", fontSize: 15, boxShadow: "0 10px 30px rgba(236,72,153,0.35)" }}>
+              Request a Demo
+            </button>
+            <p style={{ textAlign: "center", fontSize: 12, color: BRAND.muted, margin: 0 }}>No commitment. We'll reach out within 24 hours.</p>
+          </form>
 
-            <a
-              href="mailto:info@inteliflowai.com?subject=Pulse%20Inquiry"
-              style={{
-                padding: "18px 26px",
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.14)",
-                border: `1px solid ${BRAND.line}`,
-                color: BRAND.text,
-                fontWeight: 700,
-              }}
-            >
-              Contact Sales
-            </a>
-
+          <div className="p-hero-btns" style={{ marginTop: 24, display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
             <a
               href="https://pulse.inteliflowai.com/api-docs"
               style={{
-                padding: "18px 26px",
+                padding: "14px 22px",
                 borderRadius: 999,
                 background: "rgba(255,255,255,0.14)",
                 border: `1px solid ${BRAND.line}`,
@@ -764,7 +789,7 @@ function Footer() {
         <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 14, flexWrap: "wrap" }}>
           <a href="https://inteliflowai.com" style={{ color: BRAND.muted }}>Inteliflow</a>
           <a href="https://pulse.inteliflowai.com/api-docs" style={{ color: BRAND.muted }}>API Docs</a>
-          <a href="https://pulse.inteliflowai.com/login" style={{ color: BRAND.muted }}>Dashboard</a>
+          <a href="#contact" style={{ color: BRAND.muted }}>Contact Us</a>
         </div>
 
         <div style={{ color: BRAND.muted, fontSize: 13 }}>© 2026 Inteliflow AI. All rights reserved.</div>
@@ -800,7 +825,7 @@ export default function App() {
         <HowItWorks />
         <Architecture />
         <PlatformSection />
-        <CTASection />
+        <ContactForm />
         <Footer />
       </div>
     </div>
