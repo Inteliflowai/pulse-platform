@@ -13,11 +13,14 @@ pnpm install                              # Install dependencies
 pnpm --filter @pulse/shared build         # Build shared (required before other builds)
 pnpm build                                # Build everything
 pnpm dev                                  # Run all services in dev mode
-pnpm test                                 # Run vitest tests
+pnpm test                                 # Run vitest tests (15 tests)
 pnpm --filter @pulse/cloud-admin dev      # Run single app
 pnpm --filter @pulse/cloud-admin build    # Build single app
 rm -rf apps/cloud-admin/.next             # Fix stale 404s or route caching issues
 npx tsx scripts/seed-admin.ts             # Seed admin user
+
+# Marketing landing page
+cd marketing && npm install && npm run build  # Build for ReactPress deployment
 ```
 
 ## Dev Ports
@@ -29,19 +32,38 @@ npx tsx scripts/seed-admin.ts             # Seed admin user
 | jellyfin-adapter (Express) | 3101 |
 | sync-worker health | 3200 |
 
+## Repo Structure
+
+```
+pulse/
+  apps/
+    cloud-admin/        # Next.js 14 — Vercel. 40+ pages, 34 API routes
+    node-agent/         # Express — school appliance (:3100)
+    jellyfin-adapter/   # Express — Jellyfin wrapper (:3101)
+    sync-worker/        # Background sync engine
+  packages/shared/      # TypeScript types, enums, constants
+  marketing/            # React landing page for inteliflowai.com/pulse (ReactPress)
+  docker/               # Docker Compose + install script
+  supabase/
+    migrations/         # 6 SQL migrations (001-006)
+    email-templates/    # Branded invite, reset, confirm templates
+  scripts/              # Dev utilities (seed, auth test, node setup)
+```
+
 ## Architecture
 
 Two environments — **cloud** (Supabase + Vercel) and **on-prem** (node services + SQLite + Jellyfin):
 
-- `apps/cloud-admin` — Next.js 14 app router deployed to Vercel. 40 pages + 33 API routes. Dashboard UI, content management, curriculum builder, quiz engine, analytics, monitoring. Uses Supabase for auth, DB (RLS), and file storage (`pulse-assets` bucket).
-- `apps/node-agent` — Express on the school appliance (:3100). Device enrollment, self-contained offline classroom player (HTML with student login, sequenced learning, quiz engine, conductor sync), stream routing, heartbeats, auto-backup, update manager.
-- `apps/jellyfin-adapter` — Express wrapping Jellyfin REST API (:3101). Asset registration searches Jellyfin items by path (not SearchTerm). Only interface to Jellyfin.
-- `apps/sync-worker` — Background worker. Polls cloud for sync jobs, downloads via signed URLs, verifies SHA-256 checksums, copies to Jellyfin media directory (supports cross-device via copy+delete). Bandwidth throttling via `SYNC_BANDWIDTH_LIMIT_MBPS`.
+- `apps/cloud-admin` — Next.js 14 app router on Vercel. Dashboard UI, content management, curriculum builder, quiz engine, analytics, monitoring, in-app help system. Uses Supabase for auth, DB (RLS), and file storage (`pulse-assets` bucket).
+- `apps/node-agent` — Express on the school appliance (:3100). Device enrollment, self-contained offline classroom player, stream routing, heartbeats, auto-backup, update manager. Environment validated on startup — fails fast on missing `NODE_ID` or `CLOUD_API_URL`.
+- `apps/jellyfin-adapter` — Express wrapping Jellyfin REST API (:3101). Asset registration searches all Jellyfin items by path. Only interface to Jellyfin.
+- `apps/sync-worker` — Background worker. Polls cloud for sync jobs, downloads via signed URLs, verifies SHA-256 checksums, copies to Jellyfin media directory (cross-device via copy+delete). Bandwidth throttling via `SYNC_BANDWIDTH_LIMIT_MBPS`. Environment validated on startup.
 - `packages/shared` — TypeScript types, enums, constants, curriculum types. Must build before apps.
+- `marketing/` — Standalone React app (CRA) for the marketing landing page. Deployed via WordPress ReactPress plugin at `inteliflowai.com/pulse`. Uses Inteliflow brand palette (purple gradient, Glass cards, Glow orbs). Not part of the pnpm workspace — has its own `package.json`.
 
-## Pages (40 total)
+## Key Pages
 
-Key dashboard pages: Global Overview, School Dashboard, Classrooms, Curriculum (sequences + quiz builder), Results (quiz analytics with charts), Progress (student tracking), Content (assets + packages + sync jobs), Devices, Users, Audit Log, Analytics (historical trends), Monitoring (fleet + school), Search (global), Settings, Releases. Plus: Login, Reset Password, API Docs (`/api-docs`).
+Dashboard: Global Overview, School Dashboard, Classrooms, Curriculum (sequences + quiz builder), Results (quiz analytics with charts), Progress (student tracking), Content (assets + packages + sync jobs), Devices, Users, Analytics (historical trends), Audit Log, Monitoring (fleet + school), Search (global), Settings, Releases. Public: Login, Reset Password, Terms of Service, Privacy Policy, API Docs (`/api-docs`).
 
 ## Key Patterns
 
@@ -62,18 +84,35 @@ Both node-agent and sync-worker use `better-sqlite3` with WAL mode. DB files in 
 
 ### Offline-First Design
 - Node services gracefully handle cloud unreachability. Use `AbortSignal.timeout()` on fetch calls.
-- Sequences are cached to local SQLite on every cloud fetch; served from cache when offline.
+- Sequences cached to local SQLite on every cloud fetch; served from cache when offline.
 - Quiz attempts stored locally in `local_quiz_attempts`, synced to cloud when WAN returns.
+- Student sessions auto-expire after 24 hours; cleanup runs hourly.
 - Classroom player works fully offline after initial load.
 
 ### Classroom Player (node-agent)
 Self-contained HTML page served at `/classroom?token=`. No external CDN dependencies. Features:
-- Student login screen (student number entry)
+- Student login screen (student number entry, 24h session expiry)
 - Sequenced learning (video → quiz → video with timeline navigation)
 - Inline quiz engine with timer, auto-submit, score display
 - Conductor sync: polls `/conductor/state` every 5s; teacher advances → students follow
 - Mobile responsive (breakpoints at 640px and 380px)
-- i18n support: English, French, Portuguese, Swahili, Zulu, Afrikaans (`src/i18n.ts`)
+- i18n: English, Portuguese, Spanish (`src/i18n.ts`)
+
+### In-App Help System
+Components in `src/components/help/`:
+- `tour-engine.tsx` — Interactive tour with element highlighting, overlay mask, step navigation
+- `onboarding-wizard.tsx` — 6-step getting started guide, auto-shows on first login
+- `help-panel.tsx` — Slide-out docs panel with 20+ articles, search, tour launcher
+- `tooltip.tsx` — `<HelpTooltip text="..." />` for inline contextual help
+- `tours.ts` — 5 pre-built tours (Dashboard, Content, Curriculum, Classroom, Monitoring)
+- Wired via `HelpWrapper` in the dashboard layout
+
+### Security
+- CORS + CSP + X-Frame-Options + X-Content-Type-Options headers on node-agent
+- Rate limiting: 120 req/min per IP on all cloud API routes (middleware), 10 req/min on enrollment
+- Environment validation: services fail fast with clear error on missing required vars
+- Request validation utility: `src/lib/validate.ts`
+- Error tracking: `src/lib/error-tracking.ts` with structured JSON logging
 
 ### Cross-Device File Moves
 `renameSync` fails with `EXDEV` across drives. The `moveFile` helper in `sync-worker/src/downloader.ts` falls back to `copyFileSync` + `unlinkSync`.
@@ -81,17 +120,11 @@ Self-contained HTML page served at `/classroom?token=`. No external CDN dependen
 ### Multi-Tenant Isolation
 Every Supabase query must include a `tenant_id` filter. RLS policies enforce this, but be explicit.
 
-### Asset Deduplication
-`src/lib/asset-dedup.ts` checks SHA-256 checksum against existing assets before upload.
-
 ### Real-Time Updates
-`src/lib/realtime.ts` provides `useRealtimeTable()` and `useRealtimeRow()` hooks wrapping Supabase Realtime subscriptions.
+`src/lib/realtime.ts` provides `useRealtimeTable()` and `useRealtimeRow()` hooks. Realtime enabled on: nodes, sync_jobs, node_events, node_metrics, devices, notifications.
 
-### Notifications
-`notifications` table + API at `/api/notifications` (GET, POST, PATCH). Supports per-user and broadcast notifications.
-
-### Content Scheduling
-Packages and sequences have `publish_at` and `expire_at` columns for future publish/auto-expire.
+### Marketing Landing Page
+`marketing/` is a standalone CRA React app using Inteliflow brand system (BRAND palette, Glass/Glow components, inline styles). Deployed to WordPress via ReactPress. CSS overrides WordPress theme padding via `usePageStyles()`. Build with `cd marketing && npm run build`, upload `build/` folder to ReactPress.
 
 ## Environment Setup
 
@@ -105,35 +138,46 @@ Each app has its own `.env` file (gitignored). Cloud-admin also needs `.env.loca
 
 - **Cloud**: Supabase Postgres with RLS. 6 migrations in `supabase/migrations/` (001-006). Run via SQL Editor.
 - **Local node**: SQLite via better-sqlite3. Schema auto-created on startup via `initDb()`.
+- **Cleanup**: `GET /api/cron/cleanup-metrics` deletes node_metrics, heartbeat events, and read notifications older than 30 days.
 
 ## Testing
 
 ```bash
-pnpm test                                 # Run all tests (vitest)
+pnpm test    # vitest — 15 tests
 ```
 
-Tests in `packages/shared/__tests__/` and `apps/cloud-admin/__tests__/`. 15 tests covering shared types, enums, API structure, and payload validation.
+Tests in `packages/shared/__tests__/` and `apps/cloud-admin/__tests__/`.
 
 ## CI/CD
 
-GitHub Actions workflow in `.github/workflows/ci.yml`. Runs on push/PR to main: install → build shared → build cloud-admin → run tests.
+GitHub Actions in `.github/workflows/ci.yml`. On push/PR to main: install → build shared → build cloud-admin → run tests.
 
 ## Deployment
 
-- **Cloud admin** → Vercel. Root directory: `apps/cloud-admin`. Build command: `cd ../.. && pnpm install && pnpm --filter @pulse/shared build && pnpm --filter @pulse/cloud-admin build`
+- **Cloud admin** → Vercel at `pulse.inteliflowai.com`. Root directory: `apps/cloud-admin`. Build command: `cd ../.. && pnpm install && pnpm --filter @pulse/shared build && pnpm --filter @pulse/cloud-admin build`
+- **Marketing page** → WordPress ReactPress at `inteliflowai.com/pulse`. Build `marketing/`, upload `build/` folder.
 - **Node services** → Docker on school appliance (`docker/install.sh`), or directly via `pnpm dev`.
-- **API docs** available at `/api-docs` (no auth required).
+- **API docs** at `/api-docs` (no auth).
+- **Health check** at `/api/health` (returns Supabase connectivity status).
 
 ## Integrations
 
-Implemented in `apps/node-agent/src/integrations/`:
+In `apps/node-agent/src/integrations/`:
 - `core-integration.ts` — Import quizzes from CORE, sync results back
 - `spark-integration.ts` — Import interactive assets, report completions
 - `lms-sync.ts` — Batch sync quiz results + progress to cloud (5-min interval)
 
 ## Node Agent Features
 
-- Auto-backup SQLite every 6 hours (`src/backup.ts`), max 10 retained. Endpoints: `POST /backup`, `GET /backups`, `POST /restore`
-- Update manager polls cloud every 10 min for new software versions (`src/update-manager.ts`)
-- Heartbeat with system metrics: CPU, memory, disk, sessions, enrolled devices (`src/heartbeat.ts`)
+- Auto-backup SQLite every 6h (`src/backup.ts`), max 10 retained. Endpoints: `POST /backup`, `GET /backups`, `POST /restore`
+- Update manager polls cloud every 10 min (`src/update-manager.ts`)
+- Heartbeat with system metrics: CPU, memory, disk, sessions, devices (`src/heartbeat.ts`)
+- Student session expiry (24h) with hourly cleanup
 - Bandwidth throttling for sync downloads (`sync-worker/src/throttle.ts`)
+- Static file serving from `public/` (Pulse logo for classroom player)
+
+## Legal
+
+- Terms of Service at `/terms`
+- Privacy Policy at `/privacy` (covers COPPA, FERPA, GDPR)
+- Branded email templates in `supabase/email-templates/` (invite, reset password, confirm email)
