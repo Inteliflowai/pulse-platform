@@ -41,13 +41,10 @@ export async function POST(
       update.error_message = error_message;
     }
 
-    const { data: updateData, error: updateErr, count } = await supabase
+    const { error: updateErr } = await supabase
       .from('sync_jobs')
       .update(update)
-      .eq('id', jobId)
-      .select('id, status');
-
-    console.log('[complete] jobId:', jobId, 'status:', status, 'result:', JSON.stringify(updateData), 'error:', updateErr?.message, 'serviceKey:', process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 15) + '...');
+      .eq('id', jobId);
 
     if (updateErr) {
       return NextResponse.json({ error: 'Failed to update job: ' + updateErr.message }, { status: 500 });

@@ -172,11 +172,18 @@ export function createStudentSession(id: string, deviceToken: string, studentId:
 }
 
 export function getStudentSession(deviceToken: string) {
-  return db.prepare('SELECT * FROM student_sessions WHERE device_token = ? ORDER BY created_at DESC LIMIT 1').get(deviceToken) ?? null;
+  // Only return sessions less than 24 hours old
+  return db.prepare(
+    "SELECT * FROM student_sessions WHERE device_token = ? AND created_at > datetime('now', '-24 hours') ORDER BY created_at DESC LIMIT 1"
+  ).get(deviceToken) ?? null;
 }
 
 export function clearStudentSession(deviceToken: string) {
   db.prepare('DELETE FROM student_sessions WHERE device_token = ?').run(deviceToken);
+}
+
+export function cleanupExpiredSessions() {
+  db.prepare("DELETE FROM student_sessions WHERE created_at < datetime('now', '-24 hours')").run();
 }
 
 // Conductor state

@@ -12,6 +12,12 @@ services:
       - ./data/jellyfin/cache:/cache
       - ./data/media:/media
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/System/Info/Public"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   postgres:
     image: postgres:16-alpine
@@ -23,14 +29,20 @@ services:
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pulse}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   node-agent:
     build:
       context: ../apps/node-agent
     container_name: pulse-node-agent
     depends_on:
-      - postgres
-      - jellyfin
+      jellyfin:
+        condition: service_healthy
     env_file: .env
     ports:
       - "3100:3100"
@@ -38,25 +50,43 @@ services:
       - ./data/media:/media
       - ./data/sync:/sync
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3100/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   jellyfin-adapter:
     build:
       context: ../apps/jellyfin-adapter
     container_name: pulse-jellyfin-adapter
     depends_on:
-      - jellyfin
-      - postgres
+      jellyfin:
+        condition: service_healthy
     env_file: .env
     ports:
       - "3101:3101"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3101/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   sync-worker:
     build:
       context: ../apps/sync-worker
     container_name: pulse-sync-worker
     depends_on:
-      - postgres
-      - node-agent
+      node-agent:
+        condition: service_healthy
     env_file: .env
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3200/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

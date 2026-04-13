@@ -1,7 +1,10 @@
 import express from 'express';
 import { HEARTBEAT_INTERVAL_MS } from '@pulse/shared';
+import { validateEnv } from './env';
 import { log } from './logger';
-import { initDb, getEnrolledDevice, upsertEnrolledDevice, getClassroomCache, upsertClassroomCache, getLocalPackages, getLocalAssets, getEnrolledDeviceCount, getActiveSessionCount, insertPlaybackSession, touchDevice, createStudentSession, getStudentSession, clearStudentSession, setConductorState, getConductorState, saveLocalQuizAttempt, cacheSequence, getCachedSequences, getCachedSequence } from './db';
+
+validateEnv();
+import { initDb, getEnrolledDevice, upsertEnrolledDevice, getClassroomCache, upsertClassroomCache, getLocalPackages, getLocalAssets, getEnrolledDeviceCount, getActiveSessionCount, insertPlaybackSession, touchDevice, createStudentSession, getStudentSession, clearStudentSession, setConductorState, getConductorState, saveLocalQuizAttempt, cacheSequence, getCachedSequences, getCachedSequence, cleanupExpiredSessions } from './db';
 import { renderClassroomPlayer } from './classroom-player';
 import { sendHeartbeat } from './heartbeat';
 import { startUpdateManager } from './update-manager';
@@ -24,6 +27,20 @@ const JELLYFIN_ADAPTER_URL = process.env.JELLYFIN_ADAPTER_URL ?? 'http://jellyfi
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
+
+// CORS + Security headers
+app.use((_req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Node-Token');
+  res.header('X-Content-Type-Options', 'nosniff');
+  res.header('X-Frame-Options', 'SAMEORIGIN');
+  res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // CSP: allow inline scripts/styles (needed for self-contained classroom player)
+  res.header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' *; connect-src 'self' *; frame-src 'self' *;");
+  if (_req.method === 'OPTIONS') { res.sendStatus(204); return; }
+  next();
+});
 
 // Rate limiter for enrollment: 10 req/min per IP
 const enrollRateMap = new Map<string, { count: number; resetAt: number }>();
@@ -52,8 +69,8 @@ app.get('/health', async (_req, res) => {
 
   let enrolledDevices = 0;
   let activeSessions = 0;
-  try { enrolledDevices = getEnrolledDeviceCount(); } catch {}
-  try { activeSessions = getActiveSessionCount(); } catch {}
+  try { enrolledDevices = getEnrolledDeviceCount(); } catch (e: any) { log('warning', 'Failed to get device count', { error: e.message }); }
+  try { activeSessions = getActiveSessionCount(); } catch (e: any) { log('warning', 'Failed to get session count', { error: e.message }); }
 
   res.json({ ok: true, enrolled_devices: enrolledDevices, active_sessions: activeSessions, wan_connected: wanConnected, node_id: NODE_ID });
 });
@@ -595,6 +612,9 @@ async function main() {
   sendHeartbeat();
   startUpdateManager();
   startAutoBackup();
+
+  // Cleanup expired student sessions every hour
+  setInterval(() => { try { cleanupExpiredSessions(); } catch (e: any) { log('warning', 'Session cleanup failed', { error: e.message }); } }, 60 * 60 * 1000);
 }
 
 main();
