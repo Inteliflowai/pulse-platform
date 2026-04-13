@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
+import { HelpWrapper } from '@/components/help/help-wrapper';
 
 export default async function DashboardLayout({
   children,
@@ -29,7 +30,9 @@ export default async function DashboardLayout({
       <Sidebar user={profile} />
       <main className="lg:pl-64">
         <div className="p-6 pt-20 lg:pt-6">
-          {children}
+          <HelpWrapper>
+            {children}
+          </HelpWrapper>
         </div>
       </main>
     </div>
