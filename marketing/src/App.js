@@ -317,9 +317,12 @@ function Header() {
           gap: 16,
         }}
       >
-        <a href="#top" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <img src={pulseLogo} alt="Pulse" style={{ height: 60, width: "auto", objectFit: "contain" }} />
-        </a>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <a href="https://inteliflowai.com" title="Back to Inteliflow" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 999, border: `1px solid ${BRAND.line}`, background: BRAND.card, color: BRAND.muted, fontSize: 18, textDecoration: "none", flexShrink: 0 }}>&larr;</a>
+          <a href="#top" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <img src={pulseLogo} alt="Pulse" style={{ height: 60, width: "auto", objectFit: "contain" }} />
+          </a>
+        </div>
 
         <nav style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <a href="#features" style={{ color: BRAND.muted, fontWeight: 600, fontSize: 14 }}>Features</a>
