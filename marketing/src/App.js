@@ -387,11 +387,11 @@ function Hero() {
           </h1>
 
           <p style={{ marginTop: 18, fontSize: 22, lineHeight: 1.6, color: BRAND.text, maxWidth: 680 }}>
-            Pulse delivers video lessons, quizzes, and interactive content to school nodes that survive internet outages.
+            Pulse delivers video lessons, adaptive quizzes, and scheduled classroom content to school nodes that survive internet outages — with CORE-powered assessment handoff and proactive fleet monitoring.
           </p>
 
           <p style={{ marginTop: 12, fontSize: 17, lineHeight: 1.8, color: BRAND.muted, maxWidth: 620 }}>
-            Students keep learning. Teachers keep teaching. Connectivity optional.
+            Schedule lessons. Sync content. Students learn. Teachers conduct. All offline-capable.
           </p>
 
           <div className="p-hero-btns" style={{ marginTop: 26, display: "flex", gap: 14, flexWrap: "wrap" }}>
@@ -436,9 +436,9 @@ function Hero() {
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                 {[
-                  { label: "Nodes Online", value: "12", color: "#10b981" },
-                  { label: "Active Sessions", value: "347", color: "#f26522" },
-                  { label: "Content Synced", value: "98%", color: "#f59e0b" },
+                  { label: "Nodes Online", value: "24", color: "#10b981" },
+                  { label: "Scheduled Classes", value: "156", color: "#f26522" },
+                  { label: "Content Synced", value: "99%", color: "#f59e0b" },
                 ].map((s) => (
                   <div key={s.label} style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: 14, textAlign: "center" }}>
                     <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
@@ -449,9 +449,9 @@ function Hero() {
 
               <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
                 {[
-                  "Maputo School #4 — syncing 3 packages...",
-                  "Lagos Academy — 45 students active",
-                  "Lima Campus — quiz results ready",
+                  "Room 101 — 9B Biology starting in 5 min",
+                  "Lagos Academy — lesson complete → CORE quiz",
+                  "Lima Campus — 3 classes scheduled today",
                 ].map((line) => (
                   <div
                     key={line}
@@ -493,10 +493,10 @@ function StatsBar() {
         }}
       >
         {[
-          { value: "40+", label: "Dashboard Pages" },
+          { value: "50+", label: "Dashboard Pages" },
           { value: "100%", label: "Offline Capable" },
           { value: "3", label: "Languages" },
-          { value: "< 30s", label: "Sync Detection" },
+          { value: "45+", label: "API Endpoints" },
         ].map((s) => (
           <div key={s.label}>
             <div style={{ fontSize: 36, fontWeight: 800, color: BRAND.text }}>{s.value}</div>
@@ -510,22 +510,22 @@ function StatsBar() {
 
 function Features() {
   const items = [
-    { icon: "⚡", title: "Offline-First Delivery", desc: "Content syncs to on-prem nodes and plays locally. No internet? No problem. Students never see a loading spinner." },
-    { icon: "🎬", title: "Pulse Media Engine", desc: "Built on Eduboxx for rock-solid video streaming. Supports all formats, transcoding, and multi-device playback." },
-    { icon: "📚", title: "Sequenced Learning", desc: "Build learning flows: video → quiz → video → activity. Auto-advance when videos end. Timed quizzes with instant scoring." },
-    { icon: "🎓", title: "Teacher Conductor", desc: "Teachers control the classroom in real-time. Step through content, and every student device follows along automatically." },
-    { icon: "📊", title: "Analytics & Monitoring", desc: "Fleet-wide dashboards, quiz results, student progress, session tracking. Know exactly what's happening at every school." },
-    { icon: "🔒", title: "Multi-Tenant & Secure", desc: "Row-level security, role-based access, enrollment tokens, device management. Each school sees only their own data." },
-    { icon: "🌐", title: "Multi-Language", desc: "Classroom player supports English, Portuguese, and Spanish. More languages easily added for any region." },
-    { icon: "🔄", title: "Auto-Sync & Updates", desc: "Content syncs automatically. Node software updates with rollback. Bandwidth throttling to protect school internet." },
+    { icon: "⚡", title: "Offline-First Delivery", desc: "Content syncs to on-prem nodes and plays locally. No internet? No problem. Students never see a loading spinner. Lesson completions queue locally and sync when WAN returns." },
+    { icon: "📅", title: "Classroom Scheduling", desc: "Schedule which class watches which content in which room at what time. STBs auto-load content when the next class arrives. Supports recurring, daily, and weekly schedules." },
+    { icon: "🎓", title: "Mobile Teacher Conductor", desc: "Teachers control classrooms from any device. Mobile-first conductor with swipe navigation, live stats, and a 3-step Quick Lesson wizard to go from video to scheduled class in under a minute." },
+    { icon: "🧠", title: "CORE Quiz Handoff", desc: "When a video ends, Pulse fires a lesson-complete event. CORE delivers personalized quizzes matched to mastery. Offline fallback serves 3 MCQ when CORE is unreachable." },
+    { icon: "📊", title: "Fleet Monitoring & Alerts", desc: "Real-time fleet dashboard with comparison tables, CSV export, and proactive email/webhook alerts for node offline, storage critical, Jellyfin down, and sync failures." },
+    { icon: "🔒", title: "Multi-Tenant & Secure", desc: "Row-level security, role-based access (6 roles), enrollment tokens, permanent device codes, remote diagnostics with log sanitization. Each school sees only their own data." },
+    { icon: "♿", title: "Accessible Student Player", desc: "Self-contained classroom player with font size control, high contrast mode, sequence progress indicators, fixed quiz timers, and letter-prefixed MCQ buttons. EN/PT/ES." },
+    { icon: "🔄", title: "Auto-Sync, Backup & Updates", desc: "Content syncs with checksum verification. Auto-backup every 6 hours with integrity checks. Software updates respect configurable maintenance windows." },
   ];
 
   return (
     <Section id="features">
       <div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>Features</div>
-      <h2 style={{ marginTop: 12, fontSize: 48, lineHeight: 1.06, color: BRAND.text }}>Everything Schools Need to Deliver Content</h2>
+      <h2 style={{ marginTop: 12, fontSize: 48, lineHeight: 1.06, color: BRAND.text }}>Everything Schools Need to Deliver and Assess</h2>
       <p style={{ marginTop: 14, maxWidth: 860, color: BRAND.muted, fontSize: 18, lineHeight: 1.8 }}>
-        From cloud management to classroom playback — one platform, fully integrated.
+        Schedule, deliver, assess, and monitor — from cloud dashboard to classroom player. Fully offline-capable.
       </p>
 
       <div className="p-grid-four" style={{ marginTop: 30, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 18 }}>
@@ -543,15 +543,15 @@ function Features() {
 
 function HowItWorks() {
   const steps = [
-    { step: "01", title: "Upload & Package", desc: "Upload video lessons and documents to the cloud. Bundle them into packages with quizzes. Assign to grades and subjects.", color: BRAND.orange },
-    { step: "02", title: "Sync to Nodes", desc: "Push packages to school nodes. The sync worker downloads, verifies checksums, and registers with Pulse — automatically.", color: BRAND.cyan },
-    { step: "03", title: "Learn Anywhere", desc: "Students enroll devices, log in, and learn. Videos stream locally from Pulse. Quizzes auto-trigger after videos. Works fully offline.", color: "#10b981" },
+    { step: "01", title: "Upload & Schedule", desc: "Upload video lessons to the cloud or use the Quick Lesson wizard. Schedule classes on the weekly calendar — assign a sequence, class group, and classroom. Content syncs to the node automatically.", color: BRAND.orange },
+    { step: "02", title: "Sync & Ready", desc: "The sync worker downloads packages, verifies SHA-256 checksums, and registers with Pulse. Pre-class readiness indicators show green when content is on the node and ready to play.", color: BRAND.amber },
+    { step: "03", title: "Learn & Assess", desc: "STBs auto-load the scheduled lesson. Students watch videos, then Pulse hands off to CORE for personalized quizzes. Offline? Pulse serves a local 3-MCQ fallback. All results sync when connectivity returns.", color: "#10b981" },
   ];
 
   return (
     <Section id="how-it-works" style={{ background: "rgba(255,255,255,0.02)" }}>
       <div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>How it works</div>
-      <h2 style={{ marginTop: 12, fontSize: 44, lineHeight: 1.08, color: BRAND.text }}>Three Steps from Content to Classroom</h2>
+      <h2 style={{ marginTop: 12, fontSize: 44, lineHeight: 1.08, color: BRAND.text }}>Three Steps from Upload to Assessment</h2>
 
       <div className="p-grid-three" style={{ marginTop: 30, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 24 }}>
         {steps.map((s) => (
@@ -580,11 +580,11 @@ function Architecture() {
           <div style={{ color: "#f59e0b", fontSize: 12, textTransform: "uppercase", letterSpacing: 2, fontWeight: 700 }}>Cloud (Vercel + Supabase)</div>
           <div style={{ marginTop: 20, display: "grid", gap: 14 }}>
             {[
-              "40+ page dashboard for full school management",
-              "Content upload, packaging, and curriculum builder",
-              "Quiz engine with scoring and progress tracking",
-              "Fleet monitoring, analytics, and audit logs",
-              "33 REST API endpoints with rate limiting & RLS",
+              "50+ page dashboard — scheduling, curriculum, analytics, quick lesson wizard",
+              "Classroom schedule calendar with recurring classes and readiness indicators",
+              "Proactive alerting — email and webhook notifications for critical events",
+              "Fleet comparison table with sorting, filtering, and CSV export",
+              "45+ REST API endpoints with rate limiting, RLS, and multi-tenant isolation",
             ].map((line) => (
               <div key={line} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                 <div style={{ width: 8, height: 8, borderRadius: 999, background: "#f59e0b", marginTop: 6, flexShrink: 0 }} />
@@ -598,11 +598,11 @@ function Architecture() {
           <div style={{ color: "#f26522", fontSize: 12, textTransform: "uppercase", letterSpacing: 2, fontWeight: 700 }}>School Node (On-Prem)</div>
           <div style={{ marginTop: 20, display: "grid", gap: 14 }}>
             {[
-              "Pulse media server for local video streaming",
-              "Sync worker downloads & verifies content automatically",
-              "Classroom player — works 100% offline after first sync",
-              "Device enrollment with QR codes",
-              "Auto-backup, health monitoring, OTA updates",
+              "Schedule-aware STB auto-load — content starts when the class arrives",
+              "Lesson-complete events fire to CORE for adaptive quizzes",
+              "Accessible classroom player with font scaling, high contrast, and i18n",
+              "Mobile teacher conductor with swipe gestures and live session stats",
+              "Auto-backup with integrity verification, remote diagnostics, maintenance windows",
             ].map((line) => (
               <div key={line} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                 <div style={{ width: 8, height: 8, borderRadius: 999, background: "#f26522", marginTop: 6, flexShrink: 0 }} />
@@ -626,7 +626,7 @@ function PlatformSection() {
           <div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>Part of the Inteliflow Ecosystem</div>
           <h2 style={{ marginTop: 12, fontSize: 42, lineHeight: 1.08, color: BRAND.text }}>Pulse Works Better With the Full Ecosystem</h2>
           <p style={{ marginTop: 14, maxWidth: 900, color: BRAND.muted, fontSize: 18, lineHeight: 1.85 }}>
-            Pulse handles delivery. But when combined with LIFT (admissions insight), CORE (classroom learning), and SPARK (hands-on discovery), you get a complete connected learning ecosystem.
+            Pulse handles content delivery and classroom scheduling. When a lesson ends, it hands off to CORE for adaptive assessment. Combined with LIFT (admissions) and SPARK (discovery), you get a complete connected learning ecosystem.
           </p>
 
           <div className="p-grid-four" style={{ marginTop: 26, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
