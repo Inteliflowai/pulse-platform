@@ -234,6 +234,44 @@ export interface SoftwareRelease {
   updated_at: string;
 }
 
+export interface ClassroomSchedule {
+  id: string;
+  classroom_id: string;
+  class_group_id: string;
+  sequence_id: string;
+  teacher_id: string | null;
+  site_id: string;
+  tenant_id: string;
+  scheduled_date: string | null;
+  scheduled_time: string;
+  duration_minutes: number;
+  recurrence: 'once' | 'daily' | 'weekly' | 'weekdays' | 'custom';
+  recurrence_days: number[];
+  recurrence_end_date: string | null;
+  status: 'scheduled' | 'active' | 'completed' | 'cancelled';
+  started_at: string | null;
+  ended_at: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export enum ScheduleStatus {
+  Scheduled = 'scheduled',
+  Active = 'active',
+  Completed = 'completed',
+  Cancelled = 'cancelled',
+}
+
+export enum ScheduleRecurrence {
+  Once = 'once',
+  Daily = 'daily',
+  Weekly = 'weekly',
+  Weekdays = 'weekdays',
+  Custom = 'custom',
+}
+
 // --- Domain Types ---
 
 export interface PackageManifest {

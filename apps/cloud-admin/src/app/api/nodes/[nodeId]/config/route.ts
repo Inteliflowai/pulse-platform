@@ -44,6 +44,65 @@ export async function GET(
     return targets.length === 0 || targets.includes(node.site_id);
   });
 
+  // Fetch active/scheduled classroom schedules for this node's classrooms
+  const classroomIds = (classrooms ?? []).map((c: any) => c.id);
+  let schedules: any[] = [];
+  let classGroupStudents: any[] = [];
+
+  if (classroomIds.length > 0) {
+    const { data: rawSchedules } = await supabase
+      .from('classroom_schedules')
+      .select(`
+        id, classroom_id, class_group_id, sequence_id, teacher_id,
+        scheduled_date, scheduled_time, duration_minutes,
+        recurrence, recurrence_days, recurrence_end_date, status,
+        class_groups(name),
+        learning_sequences(name),
+        users(full_name)
+      `)
+      .in('classroom_id', classroomIds)
+      .in('status', ['scheduled', 'active']);
+
+    schedules = (rawSchedules ?? []).map((s: any) => ({
+      id: s.id,
+      classroom_id: s.classroom_id,
+      class_group_id: s.class_group_id,
+      sequence_id: s.sequence_id,
+      teacher_id: s.teacher_id,
+      teacher_name: s.users?.full_name ?? null,
+      class_group_name: s.class_groups?.name ?? null,
+      sequence_name: s.learning_sequences?.name ?? null,
+      scheduled_date: s.scheduled_date,
+      scheduled_time: s.scheduled_time,
+      duration_minutes: s.duration_minutes,
+      recurrence: s.recurrence,
+      recurrence_days: s.recurrence_days ?? [],
+      recurrence_end_date: s.recurrence_end_date,
+      status: s.status,
+    }));
+
+    // Fetch class group students for the scheduled class groups
+    const classGroupIds = [...new Set(schedules.map((s: any) => s.class_group_id))];
+    if (classGroupIds.length > 0) {
+      const { data: cgs } = await supabase
+        .from('class_group_students')
+        .select(`
+          id, class_group_id, student_id,
+          student_profiles(student_number, users(full_name))
+        `)
+        .in('class_group_id', classGroupIds)
+        .eq('status', 'active');
+
+      classGroupStudents = (cgs ?? []).map((c: any) => ({
+        id: c.id,
+        class_group_id: c.class_group_id,
+        student_id: c.student_id,
+        student_name: (c.student_profiles as any)?.users?.full_name ?? null,
+        student_number: (c.student_profiles as any)?.student_number ?? null,
+      }));
+    }
+  }
+
   return NextResponse.json({
     classrooms: classrooms ?? [],
     device_policies: {},
@@ -53,5 +112,7 @@ export async function GET(
       name: p.name,
       manifest: p.manifest,
     })),
+    schedules,
+    class_group_students: classGroupStudents,
   });
 }

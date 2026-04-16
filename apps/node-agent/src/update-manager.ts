@@ -5,6 +5,41 @@ const NODE_ID = process.env.NODE_ID ?? '';
 const AUTO_UPDATE = process.env.AUTO_UPDATE === 'true';
 const UPDATE_CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
+// Maintenance window config (synced from cloud via config endpoint)
+let maintenanceWindow: {
+  enabled: boolean;
+  start_hour: number;
+  end_hour: number;
+  days: number[];
+} | null = null;
+
+export function setMaintenanceWindow(config: any) {
+  if (config && typeof config === 'object' && config.enabled !== undefined) {
+    maintenanceWindow = {
+      enabled: !!config.enabled,
+      start_hour: config.start_hour ?? 2,
+      end_hour: config.end_hour ?? 4,
+      days: Array.isArray(config.days) ? config.days : [0, 1, 2, 3, 4, 5, 6],
+    };
+    log('info', 'Maintenance window updated', maintenanceWindow);
+  }
+}
+
+function isInMaintenanceWindow(): boolean {
+  if (!maintenanceWindow || !maintenanceWindow.enabled) return true; // No window = always allowed
+  const now = new Date();
+  const hour = now.getHours();
+  const day = now.getDay();
+
+  if (!maintenanceWindow.days.includes(day)) return false;
+
+  if (maintenanceWindow.start_hour < maintenanceWindow.end_hour) {
+    return hour >= maintenanceWindow.start_hour && hour < maintenanceWindow.end_hour;
+  }
+  // Handle overnight window (e.g. 23:00 - 04:00)
+  return hour >= maintenanceWindow.start_hour || hour < maintenanceWindow.end_hour;
+}
+
 export function startUpdateManager() {
   log('info', 'Update manager started', { auto_update: AUTO_UPDATE });
   checkForUpdates();
@@ -28,6 +63,14 @@ async function checkForUpdates() {
     });
 
     if (AUTO_UPDATE && data.download_url) {
+      // Check maintenance window before applying
+      if (!isInMaintenanceWindow()) {
+        log('info', 'update_deferred_outside_maintenance_window', {
+          version: data.latest_version,
+          window: maintenanceWindow,
+        });
+        return;
+      }
       await performUpdate(data);
     }
   } catch (err: any) {

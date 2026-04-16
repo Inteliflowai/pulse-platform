@@ -4,7 +4,7 @@
  */
 
 const REQUIRED = ['NODE_ID', 'CLOUD_API_URL'];
-const RECOMMENDED = ['NODE_REGISTRATION_TOKEN', 'JELLYFIN_ADAPTER_URL'];
+const RECOMMENDED = ['NODE_REGISTRATION_TOKEN', 'JELLYFIN_ADAPTER_URL', 'CORE_API_URL', 'CORE_API_SECRET'];
 
 export function validateEnv() {
   const missing: string[] = [];

@@ -4,16 +4,23 @@ import { validateEnv } from './env';
 import { log } from './logger';
 
 validateEnv();
-import { initDb, getEnrolledDevice, upsertEnrolledDevice, getClassroomCache, upsertClassroomCache, getLocalPackages, getLocalAssets, getEnrolledDeviceCount, getActiveSessionCount, insertPlaybackSession, touchDevice, createStudentSession, getStudentSession, clearStudentSession, setConductorState, getConductorState, saveLocalQuizAttempt, cacheSequence, getCachedSequences, getCachedSequence, cleanupExpiredSessions } from './db';
-import { renderClassroomPlayer } from './classroom-player';
+import { initDb, getEnrolledDevice, upsertEnrolledDevice, getClassroomCache, upsertClassroomCache, getLocalPackages, getLocalAssets, getEnrolledDeviceCount, getActiveSessionCount, insertPlaybackSession, touchDevice, createStudentSession, getStudentSession, clearStudentSession, setConductorState, getConductorState, saveLocalQuizAttempt, cacheSequence, getCachedSequences, getCachedSequence, cleanupExpiredSessions, upsertScheduleCache, deleteScheduleCacheNotIn, updateEnrolledDeviceSchedule, isStudentInClassGroup, upsertClassGroupStudent } from './db';
+import { renderClassroomPlayer, ScheduleInfo } from './classroom-player';
 import { sendHeartbeat } from './heartbeat';
-import { startUpdateManager } from './update-manager';
-import { createBackup, restoreBackup, listBackups, startAutoBackup } from './backup';
+import { startUpdateManager, setMaintenanceWindow } from './update-manager';
+import { createBackup, restoreBackup, listBackups, startAutoBackup, verifyLatestBackup, getBackupStatus } from './backup';
+import { collectDiagnostics } from './diagnostics';
+import { jellyfinWebhookRouter } from './jellyfin-webhook';
+import { fireLessonComplete, LessonCompletePayload } from './lesson-complete';
+import { startLessonCompleteSync } from './lesson-complete-sync';
+import { getActiveSchedule, getUpcomingSchedule, getAllSchedulesForClassroom } from './schedule-resolver';
 
 interface EnrolledDevice {
   device_id: string;
   classroom_id: string;
   local_session_token: string;
+  schedule_id: string | null;
+  class_group_id: string | null;
   status: string;
   ip_address: string;
 }
@@ -23,6 +30,22 @@ const NODE_ID = process.env.NODE_ID ?? '';
 const CLOUD_API_URL = process.env.CLOUD_API_URL ?? '';
 const NODE_TOKEN = process.env.NODE_REGISTRATION_TOKEN ?? '';
 const JELLYFIN_ADAPTER_URL = process.env.JELLYFIN_ADAPTER_URL ?? 'http://jellyfin-adapter:3101';
+const CORE_API_URL = process.env.CORE_API_URL ?? '';
+
+// In-memory classroom events buffer (per classroom)
+const classroomEvents: Map<string, { id: string; type: string; payload: any; created_at: string }[]> = new Map();
+let eventCounter = 0;
+
+function emitClassroomEvent(classroomId: string, type: string, payload: any) {
+  eventCounter++;
+  const event = { id: String(eventCounter), type, payload, created_at: new Date().toISOString() };
+  const events = classroomEvents.get(classroomId) ?? [];
+  events.push(event);
+  // Keep max 100 events per classroom
+  if (events.length > 100) events.splice(0, events.length - 100);
+  classroomEvents.set(classroomId, events);
+  return event;
+}
 
 const app = express();
 app.use(express.json());
@@ -55,6 +78,9 @@ function checkEnrollRate(ip: string): boolean {
   entry.count++;
   return true;
 }
+
+// ── Jellyfin Webhook Router ──
+app.use(jellyfinWebhookRouter);
 
 // ── Health ──
 app.get('/health', async (_req, res) => {
@@ -111,6 +137,23 @@ app.get('/enroll', async (req, res) => {
       upsertClassroomCache(validation.classroom_id, NODE_ID, validation.classroom_name, '');
     }
 
+    // Schedule-aware enrollment: check what's active in this classroom
+    const activeSchedule = getActiveSchedule(validation.classroom_id);
+    const upcomingSchedule = getUpcomingSchedule(validation.classroom_id, 15);
+
+    if (activeSchedule) {
+      // Associate device with the active schedule's class group
+      try {
+        updateEnrolledDeviceSchedule(validation.device_id, activeSchedule.schedule_id, activeSchedule.class_group_id);
+      } catch {}
+    }
+
+    // STB devices skip student validation — they are room displays
+    const deviceType = validation.device_type ?? 'browser';
+    if (deviceType === 'stb') {
+      log('info', 'STB enrolled', { device_id: validation.device_id, classroom: validation.classroom_name });
+    }
+
     // Update cloud
     try {
       await fetch(`${CLOUD_API_URL}/api/devices/${validation.device_id}/enroll`, {
@@ -122,7 +165,12 @@ app.get('/enroll', async (req, res) => {
       log('warning', 'Could not update cloud device record (WAN may be down)');
     }
 
-    log('info', 'Device enrolled', { device_id: validation.device_id, classroom: validation.classroom_name });
+    log('info', 'Device enrolled', {
+      device_id: validation.device_id,
+      classroom: validation.classroom_name,
+      schedule: activeSchedule?.schedule_id ?? null,
+      class_group: activeSchedule?.class_group_name ?? null,
+    });
 
     // Redirect to classroom player
     res.redirect(`/classroom?token=${localSessionToken}`);
@@ -153,7 +201,26 @@ app.get('/classroom', async (req, res) => {
     nodeStatus = 'online';
   } catch { /* offline */ }
 
-  res.type('html').send(renderClassroomPlayer(classroomName, token, nodeStatus));
+  // Get schedule info for the classroom
+  const active = getActiveSchedule(device.classroom_id);
+  const upcoming = getUpcomingSchedule(device.classroom_id, 15);
+  const scheduleInfo = active ? {
+    class_group_name: active.class_group_name,
+    sequence_name: active.sequence_name,
+    teacher_name: active.teacher_name,
+    minutes_remaining: active.minutes_remaining,
+    upcoming_class: null,
+    upcoming_minutes: null,
+  } : upcoming ? {
+    class_group_name: null,
+    sequence_name: null,
+    teacher_name: null,
+    minutes_remaining: null,
+    upcoming_class: upcoming.class_group_name,
+    upcoming_minutes: upcoming.minutes_remaining,
+  } : null;
+
+  res.type('html').send(renderClassroomPlayer(classroomName, token, nodeStatus, scheduleInfo));
 });
 
 // ── Classroom status (polled by player) ──
@@ -169,6 +236,146 @@ app.get('/classroom-status', async (req, res) => {
   const assets = await getLocalAssets();
 
   res.json({ classroom_id: device.classroom_id, packages: packages.length, assets: assets.length, updated_at: new Date().toISOString() });
+});
+
+// ── Classroom events (polled by player for lesson_complete etc.) ──
+app.get('/classroom-events', (req, res) => {
+  const token = req.query.token as string;
+  const afterId = req.query.after as string | undefined;
+  if (!token) { res.status(400).json({ error: 'Missing token' }); return; }
+
+  const device = getEnrolledDevice(token) as EnrolledDevice | null;
+  if (!device) { res.status(401).json({ error: 'Invalid token' }); return; }
+
+  const events = classroomEvents.get(device.classroom_id) ?? [];
+  let filtered = events;
+  if (afterId) {
+    const idx = events.findIndex(e => e.id === afterId);
+    filtered = idx >= 0 ? events.slice(idx + 1) : events;
+  }
+
+  res.json({ events: filtered.map(e => ({ id: e.id, type: e.type, ...e.payload, created_at: e.created_at })) });
+});
+
+// ── Current schedule (polled by STB and classroom player) ──
+app.get('/classroom/current-schedule', (req, res) => {
+  const token = req.query.token as string;
+  if (!token) { res.status(400).json({ error: 'Missing token' }); return; }
+
+  const device = getEnrolledDevice(token) as EnrolledDevice | null;
+  if (!device) { res.status(401).json({ error: 'Invalid token' }); return; }
+
+  const active = getActiveSchedule(device.classroom_id);
+  const upcoming = getUpcomingSchedule(device.classroom_id, 15);
+  const daySchedule = getAllSchedulesForClassroom(device.classroom_id, new Date());
+
+  res.json({
+    active,
+    upcoming,
+    day_schedule: daySchedule,
+    server_time: new Date().toISOString(),
+  });
+});
+
+// ── Student class group validation ──
+app.get('/classroom/validate-student', (req, res) => {
+  const token = req.query.token as string;
+  const studentId = req.query.student_id as string;
+  if (!token || !studentId) { res.status(400).json({ error: 'Missing params' }); return; }
+
+  const device = getEnrolledDevice(token) as EnrolledDevice | null;
+  if (!device) { res.status(401).json({ error: 'Invalid token' }); return; }
+
+  const active = getActiveSchedule(device.classroom_id);
+  if (!active) {
+    res.json({ valid: true, reason: 'no_active_schedule' });
+    return;
+  }
+
+  const inGroup = isStudentInClassGroup(studentId, active.class_group_id);
+  res.json({
+    valid: inGroup,
+    class_group_name: active.class_group_name,
+    reason: inGroup ? 'in_class_group' : 'not_in_class_group',
+  });
+});
+
+// ── Lesson-complete (called by classroom player when video ends) ──
+app.post('/lesson-complete', async (req, res) => {
+  const { token, asset_id, sequence_id, sequence_item_index, student_id, watch_pct, watch_duration_seconds } = req.body;
+  if (!token) { res.status(400).json({ error: 'Missing token' }); return; }
+
+  const device = getEnrolledDevice(token) as EnrolledDevice | null;
+  if (!device) { res.status(401).json({ error: 'Invalid token' }); return; }
+
+  // Determine WAN
+  let wanConnected = false;
+  try {
+    await fetch(`${CLOUD_API_URL}/api/health`, { signal: AbortSignal.timeout(5000) });
+    wanConnected = true;
+  } catch { /* offline */ }
+
+  const classroom = getClassroomCache(device.classroom_id) as any;
+  const deliveryMode = classroom?.delivery_mode === 'pulse_stb' ? 'pulse_stb' : 'pulse_local';
+
+  const payload: LessonCompletePayload = {
+    node_id: NODE_ID,
+    classroom_id: device.classroom_id,
+    asset_id: asset_id ?? '',
+    sequence_id: sequence_id ?? null,
+    sequence_item_index: sequence_item_index ?? null,
+    student_id: student_id ?? null,
+    device_id: device.device_id,
+    watch_pct: watch_pct ?? 100,
+    watch_duration_seconds: watch_duration_seconds ?? 0,
+    delivery_mode: deliveryMode as 'pulse_local' | 'pulse_stb',
+    completed_at: new Date().toISOString(),
+    wan_connected: wanConnected,
+    session_token: token,
+  };
+
+  const result = await fireLessonComplete(payload);
+
+  // Build classroom event
+  let eventPayload: Record<string, any>;
+  if (wanConnected && student_id) {
+    const { buildCoreQuizUrl } = await import('./core-quiz-url');
+    const studentSession = getStudentSession(token) as any;
+    const coreQuizUrl = buildCoreQuizUrl({
+      core_api_url: CORE_API_URL,
+      sequence_item_id: asset_id ?? '',
+      student_id: student_id,
+      core_session_token: studentSession?.id ?? '',
+      classroom_id: device.classroom_id,
+      node_id: NODE_ID,
+    });
+    eventPayload = {
+      redirect_to_core: true,
+      core_quiz_url: coreQuizUrl,
+      offline_fallback: false,
+      asset_id: asset_id,
+      device_id: device.device_id,
+    };
+  } else if (!wanConnected) {
+    eventPayload = {
+      redirect_to_core: false,
+      offline_fallback: true,
+      asset_id: asset_id,
+      device_id: device.device_id,
+    };
+  } else {
+    eventPayload = {
+      redirect_to_core: false,
+      offline_fallback: false,
+      asset_id: asset_id,
+      device_id: device.device_id,
+    };
+  }
+
+  // Emit to classroom events buffer
+  emitClassroomEvent(device.classroom_id, 'lesson_complete', eventPayload);
+
+  res.json({ ok: true, event: { type: 'lesson_complete', ...eventPayload } });
 });
 
 // ── Packages (offline-capable content source) ──
@@ -506,64 +713,160 @@ app.get('/conductor', async (req, res) => {
 });
 
 function renderConductorPage(token: string): string {
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Teacher Conductor — Pulse</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:sans-serif;background:#0f1117;color:#e5e7eb;min-height:100vh}
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Teacher Conductor — Pulse</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1117;color:#e5e7eb;min-height:100vh;overflow-x:hidden}
 .header{background:#1e2130;border-bottom:1px solid #374151;padding:12px 24px;display:flex;align-items:center;gap:10px}
-.header h1{font-size:16px;font-weight:700}
+.header h1{font-size:16px;font-weight:700}.header .sub{font-size:11px;color:#9ca3af;margin-left:auto}
 .content{padding:20px;max-width:800px;margin:0 auto}
-.controls{display:flex;gap:8px;margin:16px 0}
-.btn{padding:8px 16px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
-.btn:hover{background:#4f46e5}
+.controls{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}
+.btn{padding:8px 16px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;-webkit-tap-highlight-color:transparent}
+.btn:hover{background:#4f46e5}.btn:active{transform:scale(.97)}
 .btn-outline{background:transparent;border:1px solid #4b5563;color:#e5e7eb}
-.item-list{space-y:8px}
+.btn-danger{background:transparent;border:1px solid #ef4444;color:#ef4444}
+.btn-amber{background:#d97706;color:#fff}
+.item-list{margin:8px 0}
 .item{padding:12px;background:#1e2130;border:1px solid #374151;border-radius:8px;margin:6px 0;display:flex;align-items:center;gap:12px;cursor:pointer}
-.item.active{border-color:#6366f1;background:#6366f1/10}
-.item-num{width:28px;height:28px;border-radius:50%;background:#374151;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
+.item.active{border-color:#6366f1;background:rgba(99,102,241,.08)}
+.item-num{width:28px;height:28px;border-radius:50%;background:#374151;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
 .item.active .item-num{background:#6366f1}
+/* Mobile conductor */
+.m-wrap{display:flex;flex-direction:column;height:100vh;height:100dvh}
+.m-top{background:#1e2130;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #374151}
+.m-top .name{font-size:14px;font-weight:700;max-width:50%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-top .time{font-size:12px;color:#a5b4fc;font-weight:600}
+.m-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;touch-action:pan-y}
+.m-icon{font-size:48px;margin-bottom:16px}
+.m-title{font-size:1.4rem;font-weight:700;text-align:center;line-height:1.3;margin-bottom:8px}
+.m-type{font-size:13px;color:#9ca3af}
+.m-actions{padding:16px;display:flex;flex-direction:column;gap:10px}
+.m-btn{min-height:64px;width:100%;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;-webkit-tap-highlight-color:transparent}
+.m-btn:active{transform:scale(.97)}
+.m-btn-next{background:#06b6d4;color:#fff}
+.m-btn-pause{background:#d97706;color:#fff}
+.m-btn-end{background:transparent;border:2px solid #ef4444;color:#ef4444}
+.m-dots{display:flex;gap:6px;justify-content:center;padding:12px}
+.m-dot{width:10px;height:10px;border-radius:50%;background:#374151}
+.m-dot.done{background:#6366f1;opacity:.5}.m-dot.act{background:#06b6d4;transform:scale(1.3)}
+.m-stats{display:flex;justify-content:space-around;padding:8px 16px;background:#1e2130;border-top:1px solid #374151;font-size:11px;color:#9ca3af}
+.m-stats span{display:flex;align-items:center;gap:4px}
+@media(min-width:768px){.m-wrap{display:none}}
+@media(max-width:767px){.d-wrap{display:none}}
 </style></head><body>
-<div class="header"><div style="width:28px;height:28px;background:#6366f1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff">P</div><h1>Teacher Conductor</h1></div>
-<div class="content" id="content"><p style="color:#9ca3af">Loading sequences...</p></div>
+<!-- Desktop conductor -->
+<div class="d-wrap">
+<div class="header"><div style="width:28px;height:28px;background:#6366f1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff">P</div><h1>Teacher Conductor</h1><div class="sub" id="d-sched"></div></div>
+<div class="content" id="d-content"><p style="color:#9ca3af">Loading sequences...</p></div>
+</div>
+<!-- Mobile conductor -->
+<div class="m-wrap" id="m-wrap">
+<div class="m-top"><div class="name" id="m-class">Classroom</div><div class="time" id="m-time"></div></div>
+<div class="m-center" id="m-center"><p style="color:#9ca3af">Loading...</p></div>
+<div class="m-dots" id="m-dots"></div>
+<div class="m-actions" id="m-actions"></div>
+<div class="m-stats" id="m-stats"></div>
+</div>
 <script>
-var TOKEN='${token}',currentSeq=null,currentIdx=0;
+(function(){
+var TOKEN='${token}',currentSeq=null,currentIdx=0,isMobile=window.innerWidth<768,startX=0,startY=0,sessionStart=null;
+function E(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 function load(){
   fetch('/sequences?token='+TOKEN).then(function(r){return r.json()}).then(function(d){
-    if(!d.sequences||!d.sequences.length){document.getElementById('content').innerHTML='<p style="color:#9ca3af;padding:40px;text-align:center">No published sequences</p>';return;}
+    if(!d.sequences||!d.sequences.length){
+      ct().innerHTML='<p style="color:#9ca3af;padding:40px;text-align:center">No published sequences</p>';
+      if(isMobile)document.getElementById('m-center').innerHTML='<p style="color:#9ca3af">No published sequences</p>';
+      return;
+    }
     var h='<h2 style="margin-bottom:12px">Select a Sequence</h2>';
     d.sequences.forEach(function(s){
-      h+='<div class="item" onclick="selectSeq(\\''+s.id+'\\')"><div class="item-num">&#9654;</div><div><div style="font-weight:500;font-size:14px">'+s.name+'</div><div style="font-size:11px;color:#9ca3af">'+(s.items?s.items.length:0)+' items</div></div></div>';
+      h+='<div class="item" onclick="selectSeq(\\''+s.id+'\\')"><div class="item-num">&#9654;</div><div><div style="font-weight:500;font-size:14px">'+E(s.name)+'</div><div style="font-size:11px;color:#9ca3af">'+(s.items?s.items.length:0)+' items</div></div></div>';
     });
-    document.getElementById('content').innerHTML=h;
+    ct().innerHTML=h;
+    if(isMobile){
+      var mh='';d.sequences.forEach(function(s){
+        mh+='<div style="padding:16px;background:#1e2130;border:1px solid #374151;border-radius:12px;margin:8px 0;cursor:pointer" onclick="selectSeq(\\''+s.id+'\\')"><div style="font-size:16px;font-weight:600">'+E(s.name)+'</div><div style="font-size:12px;color:#9ca3af;margin-top:4px">'+(s.items?s.items.length:0)+' items</div></div>';
+      });
+      document.getElementById('m-center').innerHTML=mh;
+      document.getElementById('m-actions').innerHTML='';
+      document.getElementById('m-dots').innerHTML='';
+    }
   });
 }
+function ct(){return document.getElementById('d-content')}
 window.selectSeq=function(id){
   fetch('/sequences/'+id+'?token='+TOKEN).then(function(r){return r.json()}).then(function(s){
-    currentSeq=s;currentIdx=0;renderConductor();
+    currentSeq=s;currentIdx=0;sessionStart=Date.now();pushState();render();
   });
 };
-function renderConductor(){
+function render(){renderDesktop();if(isMobile)renderMobile();}
+function renderDesktop(){
   var items=currentSeq.items||[];
-  var h='<h2>'+currentSeq.name+'</h2><div class="controls"><button class="btn" onclick="goPrev()">&#9664; Previous</button><button class="btn" onclick="goNext()">Next &#9654;</button><button class="btn btn-outline" onclick="endSession()">End Session</button><button class="btn btn-outline" onclick="load()">Back</button></div>';
+  var h='<h2>'+E(currentSeq.name)+'</h2><div class="controls"><button class="btn" onclick="goPrev()">&#9664; Previous</button><button class="btn" onclick="goNext()">Next &#9654;</button><button class="btn btn-outline" onclick="endSession()">End Session</button><button class="btn btn-outline" onclick="load()">Back</button></div>';
   h+='<div class="item-list">';
   items.forEach(function(it,i){
-    h+='<div class="item'+(i===currentIdx?' active':'')+'" onclick="goTo('+i+')"><div class="item-num">'+(i+1)+'</div><div><div style="font-weight:500;font-size:13px">'+it.title+'</div><div style="font-size:11px;color:#9ca3af">'+it.item_type+'</div></div></div>';
+    h+='<div class="item'+(i===currentIdx?' active':'')+'" onclick="goTo('+i+')"><div class="item-num">'+(i+1)+'</div><div><div style="font-weight:500;font-size:13px">'+E(it.title)+'</div><div style="font-size:11px;color:#9ca3af">'+it.item_type+'</div></div></div>';
   });
   h+='</div>';
   if(items[currentIdx]){
     var cur=items[currentIdx];
-    h+='<div style="margin-top:16px;padding:16px;background:#1e2130;border:1px solid #6366f1;border-radius:8px"><div style="font-size:12px;color:#9ca3af">Now showing:</div><div style="font-size:16px;font-weight:600;margin-top:4px">'+cur.title+'</div><div style="font-size:12px;color:#9ca3af;margin-top:4px">Type: '+cur.item_type+'</div></div>';
+    h+='<div style="margin-top:16px;padding:16px;background:#1e2130;border:1px solid #6366f1;border-radius:8px"><div style="font-size:12px;color:#9ca3af">Now showing:</div><div style="font-size:16px;font-weight:600;margin-top:4px">'+E(cur.title)+'</div><div style="font-size:12px;color:#9ca3af;margin-top:4px">Type: '+cur.item_type+'</div></div>';
   }
-  document.getElementById('content').innerHTML=h;
+  ct().innerHTML=h;
+}
+function renderMobile(){
+  var items=currentSeq.items||[];
+  var cur=items[currentIdx];
+  if(!cur){document.getElementById('m-center').innerHTML='<p style="color:#9ca3af">No items</p>';return;}
+  var icon=cur.item_type==='video'?'&#9654;&#65039;':cur.item_type==='quiz'?'&#10067;':cur.item_type==='document'?'&#128196;':'&#9749;';
+  document.getElementById('m-center').innerHTML='<div class="m-icon">'+icon+'</div><div class="m-title">'+E(cur.title)+'</div><div class="m-type">'+(currentIdx+1)+' of '+items.length+' &middot; '+cur.item_type+'</div>';
+  // Dots
+  var dots='';items.forEach(function(_,i){dots+='<div class="m-dot'+(i<currentIdx?' done':'')+(i===currentIdx?' act':'')+'"></div>'});
+  document.getElementById('m-dots').innerHTML=dots;
+  // Actions
+  var canNext=currentIdx<items.length-1;
+  var a='';
+  if(canNext)a+='<button class="m-btn m-btn-next" onclick="goNext()">&#9193; Next Item</button>';
+  a+='<button class="m-btn m-btn-end" onclick="confirmEnd()">&#9209; End Session</button>';
+  document.getElementById('m-actions').innerHTML=a;
+  // Stats
+  var elapsed=sessionStart?Math.floor((Date.now()-sessionStart)/60000):0;
+  document.getElementById('m-stats').innerHTML='<span>&#128101; '+items.length+' items</span><span>&#9989; '+(currentIdx+1)+'/'+items.length+'</span><span>&#9202; '+elapsed+'m</span>';
 }
 function pushState(){
   fetch('/conductor/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,classroom_id:currentSeq.classroom_id||'default',sequence_id:currentSeq.id,current_item_index:currentIdx,status:'active'})}).catch(function(){});
 }
-window.goNext=function(){if(currentSeq&&currentIdx<(currentSeq.items||[]).length-1){currentIdx++;pushState();renderConductor();}};
-window.goPrev=function(){if(currentIdx>0){currentIdx--;pushState();renderConductor();}};
-window.goTo=function(i){currentIdx=i;pushState();renderConductor();};
+window.goNext=function(){if(currentSeq&&currentIdx<(currentSeq.items||[]).length-1){currentIdx++;pushState();render();}};
+window.goPrev=function(){if(currentIdx>0){currentIdx--;pushState();render();}};
+window.goTo=function(i){currentIdx=i;pushState();render();};
 window.endSession=function(){
-  fetch('/conductor/end',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,classroom_id:currentSeq.classroom_id||'default'})}).then(function(){load()}).catch(function(){});
+  fetch('/conductor/end',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,classroom_id:currentSeq.classroom_id||'default'})}).then(function(){currentSeq=null;sessionStart=null;load()}).catch(function(){});
 };
+window.confirmEnd=function(){
+  if(confirm('End this session?'))endSession();
+};
+// Touch gestures for mobile
+if(isMobile){
+  var mc=document.getElementById('m-center');
+  mc.addEventListener('touchstart',function(e){startX=e.touches[0].clientX;startY=e.touches[0].clientY},{passive:true});
+  mc.addEventListener('touchend',function(e){
+    if(!currentSeq)return;
+    var dx=e.changedTouches[0].clientX-startX,dy=e.changedTouches[0].clientY-startY;
+    if(Math.abs(dx)<50||Math.abs(dy)>Math.abs(dx))return;
+    if(dx<-50)goNext();else if(dx>50)goPrev();
+  },{passive:true});
+}
+// Schedule info
+fetch('/classroom/current-schedule?token='+TOKEN).then(function(r){return r.json()}).then(function(d){
+  if(d.active){
+    document.getElementById('d-sched').textContent=d.active.class_group_name+' \\u00b7 '+d.active.minutes_remaining+'min left';
+    document.getElementById('m-class').textContent=d.active.class_group_name||'Classroom';
+    document.getElementById('m-time').textContent=d.active.minutes_remaining+'min left';
+  }
+}).catch(function(){});
+// Update stats every 30s
+setInterval(function(){if(currentSeq&&isMobile)renderMobile()},30000);
 load();
+})();
 </script></body></html>`;
 }
 
@@ -586,6 +889,31 @@ app.post('/restore', (req, res) => {
   else res.status(500).json({ error: 'Restore failed' });
 });
 
+app.get('/backup/status', (_req, res) => {
+  res.json(getBackupStatus());
+});
+
+app.post('/backup/verify-latest', (_req, res) => {
+  const result = verifyLatestBackup();
+  res.json(result);
+});
+
+// ── Diagnostics (remote collection) ──
+app.post('/diagnostics/collect', async (req, res) => {
+  // Require X-Node-Token header
+  const nodeToken = req.headers['x-node-token'] as string;
+  if (!nodeToken || nodeToken !== NODE_TOKEN) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  try {
+    const report = await collectDiagnostics();
+    res.json(report);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Diagnostics collection failed', message: err.message });
+  }
+});
+
 // ── Error page helper ──
 function errorPage(message: string): string {
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pulse</title>
@@ -596,6 +924,74 @@ h1{color:#ef4444;margin-bottom:12px;font-size:20px}p{color:#9ca3af;font-size:14p
 }
 
 // ── Start ──
+/**
+ * Sync schedules from cloud config into local SQLite cache.
+ * Called after each heartbeat/config fetch cycle.
+ */
+async function syncSchedulesFromCloud(): Promise<void> {
+  try {
+    const configRes = await fetch(`${CLOUD_API_URL}/api/nodes/${NODE_ID}/config`, {
+      headers: { 'x-node-secret': process.env.SUPABASE_SERVICE_ROLE_KEY ?? '' },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!configRes.ok) return;
+
+    const config = await configRes.json() as any;
+
+    // Sync schedules
+    const schedules = config.schedules ?? [];
+    const ids: string[] = [];
+    for (const s of schedules) {
+      ids.push(s.id);
+      try {
+        upsertScheduleCache({
+          id: s.id,
+          classroom_id: s.classroom_id,
+          class_group_id: s.class_group_id,
+          sequence_id: s.sequence_id,
+          teacher_id: s.teacher_id ?? null,
+          teacher_name: s.teacher_name ?? null,
+          class_group_name: s.class_group_name ?? null,
+          sequence_name: s.sequence_name ?? null,
+          scheduled_date: s.scheduled_date ?? null,
+          scheduled_time: s.scheduled_time,
+          duration_minutes: s.duration_minutes ?? 60,
+          recurrence: s.recurrence ?? 'once',
+          recurrence_days: JSON.stringify(s.recurrence_days ?? []),
+          recurrence_end_date: s.recurrence_end_date ?? null,
+          status: s.status ?? 'scheduled',
+        });
+      } catch {}
+    }
+    deleteScheduleCacheNotIn(ids);
+
+    // Sync class group students
+    const classGroupStudents = config.class_group_students ?? [];
+    for (const cgs of classGroupStudents) {
+      try {
+        upsertClassGroupStudent(
+          cgs.id, cgs.class_group_id, cgs.student_id,
+          cgs.student_name ?? null, cgs.student_number ?? null
+        );
+      } catch {}
+    }
+
+    if (schedules.length > 0) {
+      log('info', 'Schedules synced from cloud', { count: schedules.length });
+    }
+
+    // Sync maintenance window from node metadata
+    const classroomsList = config.classrooms ?? [];
+    if (classroomsList.length > 0) {
+      // Maintenance window is stored on the node, check if config includes it
+      const mw = config.maintenance_window ?? config.feature_flags?.maintenance_window;
+      if (mw) setMaintenanceWindow(mw);
+    }
+  } catch {
+    // Cloud unreachable — use cached schedules
+  }
+}
+
 async function main() {
   try {
     initDb();
@@ -612,6 +1008,11 @@ async function main() {
   sendHeartbeat();
   startUpdateManager();
   startAutoBackup();
+  startLessonCompleteSync();
+
+  // Sync schedules on startup and every heartbeat cycle
+  syncSchedulesFromCloud();
+  setInterval(syncSchedulesFromCloud, HEARTBEAT_INTERVAL_MS);
 
   // Cleanup expired student sessions every hour
   setInterval(() => { try { cleanupExpiredSessions(); } catch (e: any) { log('warning', 'Session cleanup failed', { error: e.message }); } }, 60 * 60 * 1000);

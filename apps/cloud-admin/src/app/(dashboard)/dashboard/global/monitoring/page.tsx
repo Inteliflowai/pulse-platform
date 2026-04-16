@@ -5,9 +5,14 @@ import Link from 'next/link';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Server, Activity, HardDrive, AlertTriangle, AlertCircle, Info } from 'lucide-react';
+import { Server, Activity, HardDrive, AlertTriangle, AlertCircle, Info, LayoutGrid, TableProperties, Download } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
+
+type ViewMode = 'cards' | 'table';
+type SortKey = 'name' | 'site' | 'status' | 'version' | 'last_seen' | 'storage' | 'pending_sync' | 'sessions' | 'devices';
 
 function severityIcon(severity: string) {
   if (severity === 'critical') return <AlertCircle className="h-4 w-4 text-red-400" />;
@@ -24,11 +29,27 @@ function relativeTime(date: string) {
   return `${Math.floor(diff / 86400000)}d ago`;
 }
 
+function storagePct(node: any): number {
+  return node.storage_total_gb > 0 ? (node.storage_used_gb / node.storage_total_gb) * 100 : 0;
+}
+
+function rowClass(node: any): string {
+  const pct = storagePct(node);
+  const lastSeen = node.last_seen_at ? Date.now() - new Date(node.last_seen_at).getTime() : Infinity;
+  if (node.status === 'offline' || pct > 95 || lastSeen > 30 * 60_000) return 'bg-red-500/5';
+  if (pct > 85 || lastSeen > 10 * 60_000) return 'bg-yellow-500/5';
+  return '';
+}
+
 export default function GlobalMonitoringPage() {
   const [nodes, setNodes] = useState<any[]>([]);
   const [metrics, setMetrics] = useState<Record<string, any[]>>({});
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortAsc, setSortAsc] = useState(true);
+  const [filter, setFilter] = useState('');
   const supabase = createSupabaseBrowserClient();
 
   const load = useCallback(async () => {
@@ -68,11 +89,55 @@ export default function GlobalMonitoringPage() {
   const totalStorage = nodes.reduce((s, n) => s + (n.storage_used_gb ?? 0), 0);
   const nodesWithWarnings = new Set(alerts.map((a) => a.node_id)).size;
 
+  // Sorting
+  function handleSort(key: SortKey) {
+    if (sortKey === key) { setSortAsc(!sortAsc); } else { setSortKey(key); setSortAsc(true); }
+  }
+
+  const sortedNodes = [...nodes]
+    .filter(n => !filter || n.name?.toLowerCase().includes(filter.toLowerCase()) || (n.sites as any)?.name?.toLowerCase().includes(filter.toLowerCase()))
+    .sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'name': cmp = (a.name ?? '').localeCompare(b.name ?? ''); break;
+        case 'site': cmp = ((a.sites as any)?.name ?? '').localeCompare((b.sites as any)?.name ?? ''); break;
+        case 'status': cmp = (a.status ?? '').localeCompare(b.status ?? ''); break;
+        case 'version': cmp = (a.version ?? '').localeCompare(b.version ?? ''); break;
+        case 'last_seen': cmp = new Date(a.last_seen_at ?? 0).getTime() - new Date(b.last_seen_at ?? 0).getTime(); break;
+        case 'storage': cmp = storagePct(a) - storagePct(b); break;
+        case 'sessions': cmp = ((a.metadata as any)?.enrolled_devices ?? 0) - ((b.metadata as any)?.enrolled_devices ?? 0); break;
+        default: cmp = 0;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+
+  function exportCsv() {
+    const header = 'Site,Node,Status,Version,Last Seen,Storage %,Enrolled Devices\n';
+    const rows = sortedNodes.map(n =>
+      `"${(n.sites as any)?.name ?? ''}","${n.name}","${n.status}","${n.version ?? ''}","${n.last_seen_at ?? ''}","${storagePct(n).toFixed(0)}%","${(n.metadata as any)?.enrolled_devices ?? 0}"`
+    ).join('\n');
+    const blob = new Blob([header + rows], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `fleet-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+
   if (loading) return <div className="text-gray-400 py-20 text-center">Loading monitoring data...</div>;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-100">Fleet Monitoring</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-100">Fleet Monitoring</h1>
+        <div className="flex items-center gap-2">
+          <Button variant={viewMode === 'cards' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('cards')}>
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button variant={viewMode === 'table' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('table')}>
+            <TableProperties className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
       {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -82,52 +147,119 @@ export default function GlobalMonitoringPage() {
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Nodes with Warnings</CardTitle></CardHeader><CardContent><span className="text-2xl font-bold text-yellow-400">{nodesWithWarnings}</span></CardContent></Card>
       </div>
 
-      {/* Node grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {nodes.map((node) => {
-          const storagePct = node.storage_total_gb > 0 ? (node.storage_used_gb / node.storage_total_gb) * 100 : 0;
-          const statusColor = node.status === 'active' ? 'bg-emerald-400' : 'bg-red-400';
-          const cpuData = metrics[node.id] ?? [];
+      {/* Fleet Comparison Table */}
+      {viewMode === 'table' && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Fleet Comparison</CardTitle>
+              <div className="flex items-center gap-2">
+                <Input placeholder="Filter by name or site..." value={filter} onChange={e => setFilter(e.target.value)} className="w-64 h-8 text-xs" />
+                <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-3 w-3 mr-1" /> CSV</Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {[
+                    { key: 'site' as SortKey, label: 'Site' },
+                    { key: 'name' as SortKey, label: 'Node' },
+                    { key: 'status' as SortKey, label: 'Status' },
+                    { key: 'version' as SortKey, label: 'Version' },
+                    { key: 'last_seen' as SortKey, label: 'Last Seen' },
+                    { key: 'storage' as SortKey, label: 'Storage' },
+                    { key: 'sessions' as SortKey, label: 'Devices' },
+                  ].map(col => (
+                    <TableHead key={col.key} className="cursor-pointer hover:text-gray-200 select-none" onClick={() => handleSort(col.key)}>
+                      {col.label} {sortKey === col.key && (sortAsc ? '↑' : '↓')}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedNodes.map(node => {
+                  const pct = storagePct(node);
+                  const lastSeenMs = node.last_seen_at ? Date.now() - new Date(node.last_seen_at).getTime() : Infinity;
+                  const storageColor = pct > 85 ? 'text-red-400' : pct > 70 ? 'text-yellow-400' : 'text-emerald-400';
+                  const lastSeenColor = lastSeenMs > 30 * 60_000 ? 'text-red-400' : lastSeenMs > 10 * 60_000 ? 'text-yellow-400' : '';
 
-          return (
-            <Link key={node.id} href={`/dashboard/global/nodes/${node.id}`}>
-              <Card className="hover:border-brand-primary transition-colors cursor-pointer">
-                <CardContent className="pt-4 space-y-3">
-                  <div className="flex items-center justify-between">
+                  return (
+                    <TableRow key={node.id} className={`${rowClass(node)} cursor-pointer`} onClick={() => window.location.href = `/dashboard/global/nodes/${node.id}`}>
+                      <TableCell className="text-sm">{(node as any).sites?.name ?? '—'}</TableCell>
+                      <TableCell className="font-medium text-sm">{node.name}</TableCell>
+                      <TableCell>
+                        <Badge variant={node.status === 'active' ? 'default' : 'destructive'} className={node.status === 'active' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : ''}>
+                          {node.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{node.version ?? '—'}</TableCell>
+                      <TableCell className={`text-xs ${lastSeenColor}`}>{node.last_seen_at ? relativeTime(node.last_seen_at) : 'never'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-16 rounded-full bg-gray-700"><div className={`h-1.5 rounded-full ${pct > 85 ? 'bg-red-400' : pct > 70 ? 'bg-yellow-400' : 'bg-emerald-400'}`} style={{ width: `${Math.min(pct, 100)}%` }} /></div>
+                          <span className={`text-xs ${storageColor}`}>{pct.toFixed(0)}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{(node.metadata as any)?.enrolled_devices ?? 0}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Node grid (cards view) */}
+      {viewMode === 'cards' && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {nodes.map((node) => {
+            const pct = storagePct(node);
+            const statusColor = node.status === 'active' ? 'bg-emerald-400' : 'bg-red-400';
+            const cpuData = metrics[node.id] ?? [];
+
+            return (
+              <Link key={node.id} href={`/dashboard/global/nodes/${node.id}`}>
+                <Card className="hover:border-brand-primary transition-colors cursor-pointer">
+                  <CardContent className="pt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
+                        <span className="font-medium text-sm">{node.name}</span>
+                      </div>
+                      <span className="text-xs text-gray-500">{(node as any).sites?.name}</span>
+                    </div>
+                    {/* CPU sparkline */}
+                    {cpuData.length > 0 && (
+                      <div className="h-8">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={cpuData}>
+                            <Line type="monotone" dataKey="cpu" stroke="#6366f1" strokeWidth={1.5} dot={false} />
+                            <Tooltip content={({ payload }) => payload?.[0] ? <div className="bg-brand-surface border border-gray-700 rounded px-2 py-1 text-xs">CPU: {(payload[0].value as number).toFixed(0)}%</div> : null} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                    {/* Storage bar */}
                     <div className="flex items-center gap-2">
-                      <div className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
-                      <span className="font-medium text-sm">{node.name}</span>
+                      <HardDrive className="h-3 w-3 text-gray-500" />
+                      <div className="h-1.5 flex-1 rounded-full bg-gray-700">
+                        <div className="h-1.5 rounded-full bg-brand-primary" style={{ width: `${Math.min(pct, 100)}%` }} />
+                      </div>
+                      <span className="text-xs text-gray-500">{pct.toFixed(0)}%</span>
                     </div>
-                    <span className="text-xs text-gray-500">{(node as any).sites?.name}</span>
-                  </div>
-                  {/* CPU sparkline */}
-                  {cpuData.length > 0 && (
-                    <div className="h-8">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={cpuData}>
-                          <Line type="monotone" dataKey="cpu" stroke="#6366f1" strokeWidth={1.5} dot={false} />
-                          <Tooltip content={({ payload }) => payload?.[0] ? <div className="bg-brand-surface border border-gray-700 rounded px-2 py-1 text-xs">CPU: {(payload[0].value as number).toFixed(0)}%</div> : null} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                    <div className="text-xs text-gray-500">
+                      Last seen: {node.last_seen_at ? relativeTime(node.last_seen_at) : 'never'}
                     </div>
-                  )}
-                  {/* Storage bar */}
-                  <div className="flex items-center gap-2">
-                    <HardDrive className="h-3 w-3 text-gray-500" />
-                    <div className="h-1.5 flex-1 rounded-full bg-gray-700">
-                      <div className="h-1.5 rounded-full bg-brand-primary" style={{ width: `${Math.min(storagePct, 100)}%` }} />
-                    </div>
-                    <span className="text-xs text-gray-500">{storagePct.toFixed(0)}%</span>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Last seen: {node.last_seen_at ? relativeTime(node.last_seen_at) : 'never'}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       {/* Alerts feed */}
       <Card>

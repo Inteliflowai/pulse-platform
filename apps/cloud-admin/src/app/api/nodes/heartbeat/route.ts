@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import type { HeartbeatPayload } from '@pulse/shared';
+import { dispatchAlert } from '@/lib/alerts/dispatcher';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const { data: node, error: findError } = await supabase
       .from('nodes')
-      .select('id, status, metadata')
+      .select('id, status, tenant_id, metadata')
       .eq('id', node_id)
       .single();
 
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
 
     const now = new Date().toISOString();
     const prevMeta = (node.metadata as any) ?? {};
+    const tenantId = node.tenant_id;
 
     // Update node
     await supabase
@@ -38,7 +40,7 @@ export async function POST(request: NextRequest) {
         storage_used_gb,
         storage_total_gb,
         version,
-        metadata: { ...prevMeta, last_wan_connected: wan_connected, cpu_high_count: prevMeta.cpu_high_count ?? 0 },
+        metadata: { ...prevMeta, last_wan_connected: wan_connected, cpu_high_count: prevMeta.cpu_high_count ?? 0, enrolled_devices: enrolled_devices ?? 0 },
       })
       .eq('id', node_id);
 
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
       metadata: payload as any,
     });
 
-    // ── Alert detection ──
+    // ── Alert detection (dispatch runs async — never blocks response) ──
 
     // WAN state change
     if (wan_connected && prevMeta.last_wan_connected === false) {
@@ -76,6 +78,8 @@ export async function POST(request: NextRequest) {
     // Jellyfin unreachable
     if (!jellyfin_reachable) {
       await supabase.from('node_events').insert({ node_id, event_type: 'jellyfin_unreachable', severity: 'warning', message: 'Jellyfin is not reachable from the node' });
+      // Dispatch alert async
+      dispatchAlert({ tenant_id: tenantId, node_id, alert_type: 'jellyfin_unreachable', severity: 'warning', message: 'Jellyfin is not reachable from the node' }).catch(() => {});
     }
 
     // Storage alerts
@@ -83,14 +87,16 @@ export async function POST(request: NextRequest) {
       const storagePct = storage_used_gb / storage_total_gb;
       if (storagePct > 0.95) {
         await supabase.from('node_events').insert({ node_id, event_type: 'storage_critical', severity: 'critical', message: `Storage at ${(storagePct * 100).toFixed(0)}%` });
+        dispatchAlert({ tenant_id: tenantId, node_id, alert_type: 'storage_critical', severity: 'critical', message: `Storage at ${(storagePct * 100).toFixed(0)}%` }).catch(() => {});
       } else if (storagePct > 0.85) {
         await supabase.from('node_events').insert({ node_id, event_type: 'storage_high', severity: 'warning', message: `Storage at ${(storagePct * 100).toFixed(0)}%` });
+        dispatchAlert({ tenant_id: tenantId, node_id, alert_type: 'storage_high', severity: 'warning', message: `Storage at ${(storagePct * 100).toFixed(0)}%` }).catch(() => {});
       }
     }
 
     // CPU sustained high (3 consecutive heartbeats > 90%)
     const cpuHighCount = (cpu_usage_pct ?? 0) > 90 ? (prevMeta.cpu_high_count ?? 0) + 1 : 0;
-    await supabase.from('nodes').update({ metadata: { ...prevMeta, last_wan_connected: wan_connected, cpu_high_count: cpuHighCount } }).eq('id', node_id);
+    await supabase.from('nodes').update({ metadata: { ...prevMeta, last_wan_connected: wan_connected, cpu_high_count: cpuHighCount, enrolled_devices: enrolled_devices ?? 0 } }).eq('id', node_id);
 
     if (cpuHighCount >= 3) {
       await supabase.from('node_events').insert({ node_id, event_type: 'cpu_sustained_high', severity: 'warning', message: `CPU above 90% for ${cpuHighCount} consecutive heartbeats` });

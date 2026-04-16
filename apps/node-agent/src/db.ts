@@ -20,6 +20,8 @@ export function initDb() {
       local_session_token TEXT UNIQUE NOT NULL,
       device_name         TEXT,
       device_type         TEXT DEFAULT 'browser',
+      schedule_id         TEXT,
+      class_group_id      TEXT,
       status              TEXT NOT NULL DEFAULT 'enrolled',
       enrolled_at         TEXT DEFAULT (datetime('now')),
       last_seen_at        TEXT,
@@ -31,6 +33,7 @@ export function initDb() {
       node_id       TEXT,
       name          TEXT NOT NULL,
       room_code     TEXT,
+      delivery_mode TEXT DEFAULT 'pulse_local',
       cached_at     TEXT DEFAULT (datetime('now'))
     );
 
@@ -65,6 +68,7 @@ export function initDb() {
       created_at       TEXT DEFAULT (datetime('now')),
       updated_at       TEXT DEFAULT (datetime('now'))
     );
+
     CREATE TABLE IF NOT EXISTS student_sessions (
       id              TEXT PRIMARY KEY,
       device_token    TEXT NOT NULL,
@@ -110,12 +114,72 @@ export function initDb() {
       completed_at    TEXT DEFAULT (datetime('now')),
       synced_to_cloud INTEGER DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS lesson_completions (
+      id                      TEXT PRIMARY KEY,
+      node_id                 TEXT NOT NULL,
+      classroom_id            TEXT NOT NULL,
+      asset_id                TEXT NOT NULL,
+      sequence_id             TEXT,
+      sequence_item_index     INTEGER,
+      student_id              TEXT,
+      device_id               TEXT NOT NULL,
+      watch_pct               REAL NOT NULL,
+      watch_duration_seconds  INTEGER,
+      delivery_mode           TEXT NOT NULL,
+      completed_at            DATETIME NOT NULL,
+      synced_to_core          INTEGER DEFAULT 0,
+      sync_attempts           INTEGER DEFAULT 0,
+      synced_at               DATETIME,
+      created_at              DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_lesson_completions_synced
+      ON lesson_completions(synced_to_core);
+
+    CREATE TABLE IF NOT EXISTS classroom_schedule_cache (
+      id                  TEXT PRIMARY KEY,
+      classroom_id        TEXT NOT NULL,
+      class_group_id      TEXT NOT NULL,
+      sequence_id         TEXT NOT NULL,
+      teacher_id          TEXT,
+      teacher_name        TEXT,
+      class_group_name    TEXT,
+      sequence_name       TEXT,
+      scheduled_date      TEXT,
+      scheduled_time      TEXT NOT NULL,
+      duration_minutes    INTEGER NOT NULL,
+      recurrence          TEXT NOT NULL DEFAULT 'once',
+      recurrence_days     TEXT DEFAULT '[]',
+      recurrence_end_date TEXT,
+      status              TEXT DEFAULT 'scheduled',
+      cached_at           DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_schedule_cache_classroom
+      ON classroom_schedule_cache(classroom_id, scheduled_time);
+
+    CREATE TABLE IF NOT EXISTS class_group_students_cache (
+      id              TEXT PRIMARY KEY,
+      class_group_id  TEXT NOT NULL,
+      student_id      TEXT NOT NULL,
+      student_name    TEXT,
+      student_number  TEXT,
+      cached_at       DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_cgs_cache_group
+      ON class_group_students_cache(class_group_id);
   `);
   log('info', 'Local SQLite database initialized', { path: DB_PATH });
 }
 
 export function getEnrolledDevice(token: string) {
   return db.prepare('SELECT * FROM enrolled_devices WHERE local_session_token = ? AND status = ?').get(token, 'enrolled') ?? null;
+}
+
+export function getEnrolledDeviceByDeviceId(deviceId: string) {
+  return db.prepare('SELECT * FROM enrolled_devices WHERE device_id = ? AND status = ?').get(deviceId, 'enrolled') ?? null;
 }
 
 export function upsertEnrolledDevice(deviceId: string, classroomId: string, enrollmentToken: string, localSessionToken: string, ip: string) {
@@ -144,6 +208,10 @@ export function getLocalPackages() {
 
 export function getLocalAssets() {
   return db.prepare("SELECT * FROM local_assets WHERE status = 'ready'").all();
+}
+
+export function getLocalAssetByJellyfinId(jellyfinItemId: string) {
+  return db.prepare('SELECT * FROM local_assets WHERE jellyfin_item_id = ?').get(jellyfinItemId) ?? null;
 }
 
 export function getEnrolledDeviceCount(): number {
@@ -232,4 +300,121 @@ export function markQuizAttemptsSynced(ids: string[]) {
   if (ids.length === 0) return;
   const placeholders = ids.map(() => '?').join(',');
   db.prepare(`UPDATE local_quiz_attempts SET synced_to_cloud = 1 WHERE id IN (${placeholders})`).run(...ids);
+}
+
+// Lesson completions
+export function insertLessonCompletion(
+  id: string, nodeId: string, classroomId: string, assetId: string,
+  sequenceId: string | null, sequenceItemIndex: number | null,
+  studentId: string | null, deviceId: string, watchPct: number,
+  watchDurationSeconds: number, deliveryMode: string, completedAt: string
+) {
+  db.prepare(
+    `INSERT INTO lesson_completions
+     (id, node_id, classroom_id, asset_id, sequence_id, sequence_item_index,
+      student_id, device_id, watch_pct, watch_duration_seconds, delivery_mode, completed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, nodeId, classroomId, assetId, sequenceId, sequenceItemIndex,
+    studentId, deviceId, watchPct, watchDurationSeconds, deliveryMode, completedAt);
+}
+
+export function markLessonCompletionSynced(id: string) {
+  db.prepare(
+    "UPDATE lesson_completions SET synced_to_core = 1, synced_at = datetime('now') WHERE id = ?"
+  ).run(id);
+}
+
+export function markLessonCompletionFailed(id: string) {
+  db.prepare(
+    'UPDATE lesson_completions SET synced_to_core = -1 WHERE id = ?'
+  ).run(id);
+}
+
+export function incrementLessonCompletionAttempts(id: string) {
+  db.prepare(
+    'UPDATE lesson_completions SET sync_attempts = sync_attempts + 1 WHERE id = ?'
+  ).run(id);
+}
+
+export function getUnsyncedLessonCompletions(): any[] {
+  return db.prepare(
+    'SELECT * FROM lesson_completions WHERE synced_to_core = 0 AND student_id IS NOT NULL AND sync_attempts < 10'
+  ).all();
+}
+
+// Schedule cache
+export function upsertScheduleCache(schedule: {
+  id: string; classroom_id: string; class_group_id: string; sequence_id: string;
+  teacher_id: string | null; teacher_name: string | null; class_group_name: string | null;
+  sequence_name: string | null; scheduled_date: string | null; scheduled_time: string;
+  duration_minutes: number; recurrence: string; recurrence_days: string;
+  recurrence_end_date: string | null; status: string;
+}) {
+  db.prepare(
+    `INSERT INTO classroom_schedule_cache
+     (id, classroom_id, class_group_id, sequence_id, teacher_id, teacher_name,
+      class_group_name, sequence_name, scheduled_date, scheduled_time, duration_minutes,
+      recurrence, recurrence_days, recurrence_end_date, status, cached_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(id) DO UPDATE SET
+      classroom_id=excluded.classroom_id, class_group_id=excluded.class_group_id,
+      sequence_id=excluded.sequence_id, teacher_id=excluded.teacher_id,
+      teacher_name=excluded.teacher_name, class_group_name=excluded.class_group_name,
+      sequence_name=excluded.sequence_name, scheduled_date=excluded.scheduled_date,
+      scheduled_time=excluded.scheduled_time, duration_minutes=excluded.duration_minutes,
+      recurrence=excluded.recurrence, recurrence_days=excluded.recurrence_days,
+      recurrence_end_date=excluded.recurrence_end_date, status=excluded.status,
+      cached_at=datetime('now')`
+  ).run(
+    schedule.id, schedule.classroom_id, schedule.class_group_id, schedule.sequence_id,
+    schedule.teacher_id, schedule.teacher_name, schedule.class_group_name,
+    schedule.sequence_name, schedule.scheduled_date, schedule.scheduled_time,
+    schedule.duration_minutes, schedule.recurrence, schedule.recurrence_days,
+    schedule.recurrence_end_date, schedule.status
+  );
+}
+
+export function deleteScheduleCacheNotIn(ids: string[]) {
+  if (ids.length === 0) {
+    db.prepare('DELETE FROM classroom_schedule_cache').run();
+    return;
+  }
+  const placeholders = ids.map(() => '?').join(',');
+  db.prepare(`DELETE FROM classroom_schedule_cache WHERE id NOT IN (${placeholders})`).run(...ids);
+}
+
+export function getSchedulesForClassroom(classroomId: string): any[] {
+  return db.prepare(
+    "SELECT * FROM classroom_schedule_cache WHERE classroom_id = ? AND status != 'cancelled' ORDER BY scheduled_time"
+  ).all(classroomId);
+}
+
+export function getAllSchedules(): any[] {
+  return db.prepare(
+    "SELECT * FROM classroom_schedule_cache WHERE status != 'cancelled' ORDER BY scheduled_time"
+  ).all();
+}
+
+export function updateEnrolledDeviceSchedule(deviceId: string, scheduleId: string | null, classGroupId: string | null) {
+  db.prepare(
+    'UPDATE enrolled_devices SET schedule_id = ?, class_group_id = ? WHERE device_id = ?'
+  ).run(scheduleId, classGroupId, deviceId);
+}
+
+// Class group students cache
+export function upsertClassGroupStudent(id: string, classGroupId: string, studentId: string, studentName: string | null, studentNumber: string | null) {
+  db.prepare(
+    `INSERT INTO class_group_students_cache (id, class_group_id, student_id, student_name, student_number, cached_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(id) DO UPDATE SET student_name=excluded.student_name, student_number=excluded.student_number, cached_at=datetime('now')`
+  ).run(id, classGroupId, studentId, studentName, studentNumber);
+}
+
+export function getClassGroupStudents(classGroupId: string): any[] {
+  return db.prepare('SELECT * FROM class_group_students_cache WHERE class_group_id = ?').all(classGroupId);
+}
+
+export function isStudentInClassGroup(studentId: string, classGroupId: string): boolean {
+  const row = db.prepare('SELECT 1 FROM class_group_students_cache WHERE student_id = ? AND class_group_id = ?').get(studentId, classGroupId);
+  return !!row;
 }
