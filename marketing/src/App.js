@@ -3,27 +3,30 @@ import React, { useEffect } from "react";
 const ASSET_BASE = "/wp-content/reactpress/apps/pulse-marketing";
 const IMG = (file) => `${ASSET_BASE}/images/${encodeURIComponent(file)}`;
 
+/* ─── PULSE Brand Tokens ─────────────────────────────────── */
 const BRAND = {
-  bg: "#2b1460",
-  bg2: "#4a2286",
-  bg3: "#6a2ea2",
+  bg: "#020617",
+  bg2: "#0f172a",
+  bg3: "#1e293b",
   white: "#ffffff",
-  text: "#f7f1ff",
-  muted: "#ddd0f7",
-  line: "rgba(255,255,255,0.16)",
-  card: "rgba(255,255,255,0.10)",
-  cardStrong: "rgba(255,255,255,0.16)",
-  blue: "#8b5cf6",
-  sky: "#c084fc",
-  purple: "#7c3aed",
-  magenta: "#ec4899",
-  green: "#facc15",
-  mint: "#fde047",
-  orange: "#f59e0b",
-  shadow: "0 24px 80px rgba(18, 8, 43, 0.35)",
+  text: "#f0f4ff",
+  muted: "#94a3b8",
+  line: "rgba(255,255,255,0.12)",
+  card: "rgba(255,255,255,0.06)",
+  cardStrong: "rgba(255,255,255,0.12)",
+  indigo: "#6366f1",
+  cyan: "#06b6d4",
+  sky: "#38bdf8",
+  blue: "#3b82f6",
+  violet: "#8b5cf6",
+  emerald: "#10b981",
+  amber: "#f59e0b",
+  rose: "#f43f5e",
+  mint: "#67e8f9",
+  shadow: "0 24px 80px rgba(2, 6, 23, 0.55)",
 };
 
-const PULSE_GLOW = { from: "#fb7185", to: "#f59e0b" };
+const PULSE_GLOW = { from: "#6366f1", to: "#06b6d4" };
 
 const pulseLogo = `${IMG("pulse-logo.png")}?v=2`;
 
@@ -41,7 +44,7 @@ function usePageStyles() {
         padding: 0 !important;
         width: 100%;
         min-height: 100%;
-        background: #2b1460 !important;
+        background: #020617 !important;
         overflow-x: hidden !important;
         scroll-behavior: smooth;
       }
@@ -174,7 +177,7 @@ function usePageStyles() {
 
       .if-card-hover:hover {
         transform: translateY(-5px);
-        box-shadow: 0 26px 70px rgba(18,8,43,.32);
+        box-shadow: 0 26px 70px rgba(2,6,23,.42);
         border-color: rgba(255,255,255,.22);
       }
 
@@ -269,7 +272,7 @@ function Glass({ children, style = {}, className = "" }) {
   );
 }
 
-function Glow({ left, right, top, bottom, size = 240, from = BRAND.blue, to = BRAND.magenta, opacity = 0.18 }) {
+function Glow({ left, right, top, bottom, size = 240, from = BRAND.indigo, to = BRAND.cyan, opacity = 0.18 }) {
   return (
     <div
       className="p-glow"
@@ -298,7 +301,7 @@ function Header() {
         position: "sticky",
         top: 0,
         zIndex: 50,
-        background: "rgba(43,20,96,0.74)",
+        background: "rgba(2,6,23,0.82)",
         borderBottom: `1px solid ${BRAND.line}`,
         backdropFilter: "blur(16px)",
       }}
@@ -327,10 +330,10 @@ function Header() {
             style={{
               padding: "14px 18px",
               borderRadius: 999,
-              background: `linear-gradient(135deg, ${BRAND.magenta}, ${BRAND.orange})`,
+              background: `linear-gradient(135deg, ${BRAND.indigo}, ${BRAND.cyan})`,
               color: BRAND.white,
               fontWeight: 800,
-              boxShadow: "0 10px 30px rgba(236,72,153,0.35)",
+              boxShadow: "0 10px 30px rgba(99,102,241,0.35)",
             }}
           >
             Contact Us
@@ -345,7 +348,7 @@ function Hero() {
   return (
     <Section id="top" style={{ paddingTop: 16, paddingBottom: 24, overflow: "hidden" }}>
       <Glow left={-60} top={10} size={300} from={PULSE_GLOW.from} to={PULSE_GLOW.to} />
-      <Glow right={-50} top={40} size={260} from={BRAND.purple} to={BRAND.orange} />
+      <Glow right={-50} top={40} size={260} from={BRAND.cyan} to={BRAND.violet} />
 
       <div className="p-grid-hero" style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 36, alignItems: "center" }}>
         <div>
@@ -393,10 +396,10 @@ function Hero() {
               style={{
                 padding: "16px 22px",
                 borderRadius: 999,
-                background: `linear-gradient(135deg, ${BRAND.magenta}, ${BRAND.orange})`,
+                background: `linear-gradient(135deg, ${BRAND.indigo}, ${BRAND.cyan})`,
                 color: BRAND.white,
                 fontWeight: 800,
-                boxShadow: "0 12px 30px rgba(236,72,153,0.35)",
+                boxShadow: "0 12px 30px rgba(99,102,241,0.35)",
               }}
             >
               Get Started
@@ -536,8 +539,8 @@ function Features() {
 
 function HowItWorks() {
   const steps = [
-    { step: "01", title: "Upload & Package", desc: "Upload video lessons and documents to the cloud. Bundle them into packages with quizzes. Assign to grades and subjects.", color: BRAND.magenta },
-    { step: "02", title: "Sync to Nodes", desc: "Push packages to school nodes. The sync worker downloads, verifies checksums, and registers with Pulse — automatically.", color: BRAND.orange },
+    { step: "01", title: "Upload & Package", desc: "Upload video lessons and documents to the cloud. Bundle them into packages with quizzes. Assign to grades and subjects.", color: BRAND.indigo },
+    { step: "02", title: "Sync to Nodes", desc: "Push packages to school nodes. The sync worker downloads, verifies checksums, and registers with Pulse — automatically.", color: BRAND.cyan },
     { step: "03", title: "Learn Anywhere", desc: "Students enroll devices, log in, and learn. Videos stream locally from Pulse. Quizzes auto-trigger after videos. Works fully offline.", color: "#10b981" },
   ];
 
@@ -587,8 +590,8 @@ function Architecture() {
           </div>
         </Glass>
 
-        <Glass className="if-card-hover" style={{ padding: 28, background: "rgba(251,113,133,0.08)", borderColor: "rgba(251,113,133,0.2)" }}>
-          <div style={{ color: "#fb7185", fontSize: 12, textTransform: "uppercase", letterSpacing: 2, fontWeight: 700 }}>School Node (On-Prem)</div>
+        <Glass className="if-card-hover" style={{ padding: 28, background: "rgba(6,182,212,0.08)", borderColor: "rgba(6,182,212,0.2)" }}>
+          <div style={{ color: "#22d3ee", fontSize: 12, textTransform: "uppercase", letterSpacing: 2, fontWeight: 700 }}>School Node (On-Prem)</div>
           <div style={{ marginTop: 20, display: "grid", gap: 14 }}>
             {[
               "Pulse media server for local video streaming",
@@ -598,7 +601,7 @@ function Architecture() {
               "Auto-backup, health monitoring, OTA updates",
             ].map((line) => (
               <div key={line} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <div style={{ width: 8, height: 8, borderRadius: 999, background: "#fb7185", marginTop: 6, flexShrink: 0 }} />
+                <div style={{ width: 8, height: 8, borderRadius: 999, background: "#22d3ee", marginTop: 6, flexShrink: 0 }} />
                 <div style={{ color: BRAND.text, lineHeight: 1.7, fontSize: 14 }}>{line}</div>
               </div>
             ))}
@@ -626,16 +629,16 @@ function PlatformSection() {
             {[
               { name: "LIFT", desc: "Admissions & Placement", color: "#6ee7b7" },
               { name: "CORE", desc: "Classroom Learning", color: "#a78bfa" },
-              { name: "SPARK", desc: "Hands-On Discovery", color: BRAND.orange },
-              { name: "PULSE", desc: "Content Delivery", color: PULSE_GLOW.from, active: true },
+              { name: "SPARK", desc: "Hands-On Discovery", color: BRAND.amber },
+              { name: "PULSE", desc: "Content Delivery", color: BRAND.cyan, active: true },
             ].map((p) => (
               <Glass
                 key={p.name}
                 style={{
                   padding: 20,
                   textAlign: "center",
-                  background: p.active ? "rgba(251,113,133,0.15)" : BRAND.cardStrong,
-                  borderColor: p.active ? "rgba(251,113,133,0.3)" : BRAND.line,
+                  background: p.active ? "rgba(99,102,241,0.15)" : BRAND.cardStrong,
+                  borderColor: p.active ? "rgba(99,102,241,0.3)" : BRAND.line,
                 }}
               >
                 <div style={{ fontSize: 24, fontWeight: 800, color: p.color }}>{p.name}</div>
@@ -650,10 +653,10 @@ function PlatformSection() {
               style={{
                 padding: "16px 22px",
                 borderRadius: 999,
-                background: `linear-gradient(135deg, ${BRAND.magenta}, ${BRAND.orange})`,
+                background: `linear-gradient(135deg, ${BRAND.indigo}, ${BRAND.cyan})`,
                 color: BRAND.white,
                 fontWeight: 800,
-                boxShadow: "0 10px 30px rgba(236,72,153,0.35)",
+                boxShadow: "0 10px 30px rgba(99,102,241,0.35)",
               }}
             >
               Explore the Full Ecosystem
@@ -674,7 +677,7 @@ function PlatformSection() {
             </a>
 
             <a
-              href="https://inteliflowai.com/core/"
+              href="https://app.inteliflowai.com/core/"
               style={{
                 padding: "16px 22px",
                 borderRadius: 999,
@@ -697,8 +700,8 @@ function ContactForm() {
   return (
     <Section id="contact" style={{ paddingBottom: 16 }}>
       <Glass className="if-card-hover" style={{ padding: 38, position: "relative", overflow: "hidden" }}>
-        <Glow left={-20} top={-20} size={180} from={BRAND.magenta} to={BRAND.sky} />
-        <Glow right={-20} bottom={-20} size={220} from={BRAND.orange} to={BRAND.purple} />
+        <Glow left={-20} top={-20} size={180} from={BRAND.indigo} to={BRAND.sky} />
+        <Glow right={-20} bottom={-20} size={220} from={BRAND.cyan} to={BRAND.violet} />
 
         <div style={{ position: "relative", zIndex: 2 }}>
           <div style={{ textAlign: "center" }}>
@@ -740,7 +743,7 @@ function ContactForm() {
               </select>
             </div>
             <textarea name="message" placeholder="Tell us about your school and what you're looking for..." rows={4} style={{ padding: "14px 16px", borderRadius: 14, border: "1px solid " + BRAND.line, background: "rgba(255,255,255,0.10)", color: BRAND.text, fontSize: 14, resize: "vertical" }} />
-            <button type="submit" style={{ padding: "16px 24px", borderRadius: 999, background: "linear-gradient(135deg, " + BRAND.magenta + ", " + BRAND.orange + ")", color: BRAND.white, fontWeight: 800, border: 0, cursor: "pointer", fontSize: 15, boxShadow: "0 10px 30px rgba(236,72,153,0.35)" }}>
+            <button type="submit" style={{ padding: "16px 24px", borderRadius: 999, background: "linear-gradient(135deg, " + BRAND.indigo + ", " + BRAND.cyan + ")", color: BRAND.white, fontWeight: 800, border: 0, cursor: "pointer", fontSize: 15, boxShadow: "0 10px 30px rgba(99,102,241,0.35)" }}>
               Request a Demo
             </button>
             <p style={{ textAlign: "center", fontSize: 12, color: BRAND.muted, margin: 0 }}>No commitment. We'll reach out within 24 hours.</p>
@@ -811,9 +814,9 @@ export default function App() {
         className="pulse-app"
         style={{
           background: `
-            radial-gradient(circle at 10% 10%, rgba(251,113,133,0.18), transparent 22%),
-            radial-gradient(circle at 86% 12%, rgba(245,158,11,0.16), transparent 18%),
-            radial-gradient(circle at 45% 78%, rgba(236,72,153,0.14), transparent 22%),
+            radial-gradient(circle at 10% 10%, rgba(99,102,241,0.18), transparent 22%),
+            radial-gradient(circle at 86% 12%, rgba(6,182,212,0.14), transparent 18%),
+            radial-gradient(circle at 45% 78%, rgba(99,102,241,0.12), transparent 22%),
             linear-gradient(180deg, ${BRAND.bg} 0%, ${BRAND.bg2} 46%, ${BRAND.bg3} 100%)
           `,
         }}
