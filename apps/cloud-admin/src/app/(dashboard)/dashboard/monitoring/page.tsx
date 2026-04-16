@@ -220,8 +220,8 @@ export default function SchoolMonitoringPage() {
             </TableBody>
           </Table>
           <div className="flex justify-center gap-2 p-3">
-            {eventsPage > 0 && <button onClick={() => setEventsPage(eventsPage - 1)} className="text-xs text-brand-primary">Previous</button>}
-            {events.length === 50 && <button onClick={() => setEventsPage(eventsPage + 1)} className="text-xs text-brand-primary">Next</button>}
+            {eventsPage > 0 && <button onClick={() => setEventsPage(eventsPage - 1)} className="text-xs text-brand-primary-light">Previous</button>}
+            {events.length === 50 && <button onClick={() => setEventsPage(eventsPage + 1)} className="text-xs text-brand-primary-light">Next</button>}
           </div>
         </CardContent>
       </Card>

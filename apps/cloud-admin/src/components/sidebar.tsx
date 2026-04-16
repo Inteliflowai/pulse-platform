@@ -93,7 +93,7 @@ export function Sidebar({ user }: SidebarProps) {
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                   active
-                    ? 'bg-brand-primary/20 text-brand-primary'
+                    ? 'bg-brand-primary/20 text-brand-primary-light'
                     : 'text-gray-400 hover:bg-brand-bg hover:text-gray-200'
                 )}
               >
@@ -107,7 +107,7 @@ export function Sidebar({ user }: SidebarProps) {
         {/* User section */}
         <div className="border-t border-gray-700 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/20 text-brand-primary text-sm font-medium">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/20 text-brand-primary-light text-sm font-medium">
               {(user.full_name || user.email).charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">

@@ -49,7 +49,7 @@ export default function CurriculumPage() {
         {tabs.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)} className={cn(
             'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-            tab === t.key ? 'border-brand-primary text-brand-primary' : 'border-transparent text-gray-400 hover:text-gray-200'
+            tab === t.key ? 'border-brand-primary text-brand-primary-light' : 'border-transparent text-gray-400 hover:text-gray-200'
           )}>
             <t.icon className="h-4 w-4" />{t.label}
           </button>
@@ -119,7 +119,7 @@ function SequencesTab({ sequences, curriculum, onRefresh }: { sequences: any[]; 
               {sequences.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-gray-500">No sequences yet. Create one to get started.</TableCell></TableRow>}
               {sequences.map((s) => (
                 <TableRow key={s.id}>
-                  <TableCell><Link href={`/dashboard/school/curriculum/sequences/${s.id}`} className="text-brand-primary hover:underline font-medium">{s.name}</Link></TableCell>
+                  <TableCell><Link href={`/dashboard/school/curriculum/sequences/${s.id}`} className="text-brand-primary-light hover:underline font-medium">{s.name}</Link></TableCell>
                   <TableCell>{(s as any).grades?.name ?? '—'}</TableCell>
                   <TableCell>{(s as any).subjects?.name ?? '—'}</TableCell>
                   <TableCell><Badge variant={s.status === 'published' ? 'success' : s.status === 'draft' ? 'warning' : 'secondary'}>{s.status}</Badge></TableCell>

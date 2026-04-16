@@ -83,7 +83,7 @@ export default async function GlobalOverviewPage() {
                 return (
                   <TableRow key={node.id}>
                     <TableCell>
-                      <Link href={`/dashboard/global/nodes/${node.id}`} className="text-brand-primary hover:underline font-medium">
+                      <Link href={`/dashboard/global/nodes/${node.id}`} className="text-brand-primary-light hover:underline font-medium">
                         {node.name}
                       </Link>
                     </TableCell>

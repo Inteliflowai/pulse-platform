@@ -272,7 +272,7 @@ export default function GlobalMonitoringPage() {
               {alerts.map((a) => (
                 <TableRow key={a.id}>
                   <TableCell>{severityIcon(a.severity)}</TableCell>
-                  <TableCell><Link href={`/dashboard/global/nodes/${a.node_id}`} className="text-brand-primary hover:underline text-sm">{(a as any).nodes?.name ?? '—'}</Link></TableCell>
+                  <TableCell><Link href={`/dashboard/global/nodes/${a.node_id}`} className="text-brand-primary-light hover:underline text-sm">{(a as any).nodes?.name ?? '—'}</Link></TableCell>
                   <TableCell className="font-mono text-xs">{a.event_type}</TableCell>
                   <TableCell className="text-sm max-w-xs truncate">{a.message ?? '—'}</TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{relativeTime(a.created_at)}</TableCell>

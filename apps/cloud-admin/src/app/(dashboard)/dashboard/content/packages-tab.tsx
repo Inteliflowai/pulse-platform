@@ -137,7 +137,7 @@ export function PackagesTab() {
               {packages.map((pkg) => (
                 <TableRow key={pkg.id}>
                   <TableCell>
-                    <Link href={`/dashboard/content/packages/${pkg.id}`} className="text-brand-primary hover:underline font-medium">
+                    <Link href={`/dashboard/content/packages/${pkg.id}`} className="text-brand-primary-light hover:underline font-medium">
                       {pkg.name}
                     </Link>
                   </TableCell>
@@ -310,7 +310,7 @@ function CreatePackageForm({ tenantId, userId, userEmail, onComplete }: {
               onClick={() => toggleSite(s.id)}
               className={`rounded-md border px-3 py-1 text-xs transition-colors ${
                 selectedSiteIds.has(s.id)
-                  ? 'border-brand-primary bg-brand-primary/20 text-brand-primary'
+                  ? 'border-brand-primary bg-brand-primary/20 text-brand-primary-light'
                   : 'border-gray-600 text-gray-400 hover:text-gray-200'
               }`}
             >

@@ -7,7 +7,7 @@ export default function TermsPage() {
   return (
     <div className="min-h-screen bg-brand-bg text-gray-200">
       <div className="max-w-3xl mx-auto px-6 py-16">
-        <Link href="/login" className="text-brand-primary text-sm hover:underline">&larr; Back to Pulse</Link>
+        <Link href="/login" className="text-brand-primary-light text-sm hover:underline">&larr; Back to Pulse</Link>
 
         <h1 className="text-3xl font-bold text-white mt-6 mb-2">Terms of Service</h1>
         <p className="text-sm text-gray-500 mb-8">Last updated: April 2026</p>
@@ -40,7 +40,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-lg font-semibold text-white">6. Data & Privacy</h2>
-            <p>We handle personal data in accordance with our <Link href="/privacy" className="text-brand-primary hover:underline">Privacy Policy</Link>. Pulse is designed with multi-tenant isolation — each school organization's data is separated and protected by row-level security. Student data is processed in compliance with applicable education data privacy regulations including COPPA, FERPA, and GDPR where applicable.</p>
+            <p>We handle personal data in accordance with our <Link href="/privacy" className="text-brand-primary-light hover:underline">Privacy Policy</Link>. Pulse is designed with multi-tenant isolation — each school organization's data is separated and protected by row-level security. Student data is processed in compliance with applicable education data privacy regulations including COPPA, FERPA, and GDPR where applicable.</p>
           </section>
 
           <section>
@@ -70,7 +70,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-lg font-semibold text-white">12. Contact</h2>
-            <p>For questions about these terms, contact us at <a href="mailto:legal@inteliflowai.com" className="text-brand-primary hover:underline">legal@inteliflowai.com</a>.</p>
+            <p>For questions about these terms, contact us at <a href="mailto:legal@inteliflowai.com" className="text-brand-primary-light hover:underline">legal@inteliflowai.com</a>.</p>
           </section>
         </div>
       </div>

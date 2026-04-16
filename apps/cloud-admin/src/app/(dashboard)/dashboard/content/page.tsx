@@ -30,7 +30,7 @@ export default function ContentPage() {
             className={cn(
               'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
               activeTab === tab.key
-                ? 'border-brand-primary text-brand-primary'
+                ? 'border-brand-primary text-brand-primary-light'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             )}
           >

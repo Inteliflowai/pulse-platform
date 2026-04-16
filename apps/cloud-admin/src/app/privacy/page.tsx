@@ -7,7 +7,7 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-brand-bg text-gray-200">
       <div className="max-w-3xl mx-auto px-6 py-16">
-        <Link href="/login" className="text-brand-primary text-sm hover:underline">&larr; Back to Pulse</Link>
+        <Link href="/login" className="text-brand-primary-light text-sm hover:underline">&larr; Back to Pulse</Link>
 
         <h1 className="text-3xl font-bold text-white mt-6 mb-2">Privacy Policy</h1>
         <p className="text-sm text-gray-500 mb-8">Last updated: April 2026</p>
@@ -83,8 +83,8 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-lg font-semibold text-white">13. Contact</h2>
-            <p>For privacy inquiries or data requests, contact our Data Protection Officer at <a href="mailto:privacy@inteliflowai.com" className="text-brand-primary hover:underline">privacy@inteliflowai.com</a>.</p>
-            <p className="mt-2">Inteliflow AI<br />Email: <a href="mailto:info@inteliflowai.com" className="text-brand-primary hover:underline">info@inteliflowai.com</a></p>
+            <p>For privacy inquiries or data requests, contact our Data Protection Officer at <a href="mailto:privacy@inteliflowai.com" className="text-brand-primary-light hover:underline">privacy@inteliflowai.com</a>.</p>
+            <p className="mt-2">Inteliflow AI<br />Email: <a href="mailto:info@inteliflowai.com" className="text-brand-primary-light hover:underline">info@inteliflowai.com</a></p>
           </section>
         </div>
       </div>

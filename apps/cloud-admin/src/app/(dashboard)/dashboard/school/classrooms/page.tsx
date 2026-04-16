@@ -136,7 +136,7 @@ export default function ClassroomsPage() {
               {classrooms.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
-                    <Link href={`/dashboard/school/classrooms/${c.id}`} className="text-brand-primary hover:underline font-medium">{c.name}</Link>
+                    <Link href={`/dashboard/school/classrooms/${c.id}`} className="text-brand-primary-light hover:underline font-medium">{c.name}</Link>
                   </TableCell>
                   <TableCell className="font-mono text-xs">{c.room_code ?? '—'}</TableCell>
                   <TableCell>{(c as any).nodes?.name ?? '—'}</TableCell>

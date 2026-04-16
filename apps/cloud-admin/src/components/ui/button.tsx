@@ -13,7 +13,7 @@ const buttonVariants = cva(
         outline: 'border border-gray-600 bg-transparent text-gray-200 shadow-sm hover:bg-brand-surface',
         secondary: 'bg-brand-surface text-gray-200 shadow-sm hover:bg-brand-surface/80',
         ghost: 'text-gray-200 hover:bg-brand-surface',
-        link: 'text-brand-primary underline-offset-4 hover:underline',
+        link: 'text-brand-primary-light underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-9 px-4 py-2',

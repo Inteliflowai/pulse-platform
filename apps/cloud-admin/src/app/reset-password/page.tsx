@@ -47,7 +47,7 @@ export default function ResetPasswordPage() {
               <div className="rounded-md bg-emerald-500/10 border border-emerald-500/30 px-3 py-4 text-sm text-emerald-400">
                 Check your email for a password reset link.
               </div>
-              <a href="/login" className="text-sm text-brand-primary hover:underline">Back to login</a>
+              <a href="/login" className="text-sm text-brand-primary-light hover:underline">Back to login</a>
             </div>
           ) : (
             <form onSubmit={handleReset} className="space-y-4">

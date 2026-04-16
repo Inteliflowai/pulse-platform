@@ -88,7 +88,7 @@ export default function DevicesPage() {
         {tabs.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)} className={cn(
             'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-            tab === t.key ? 'border-brand-primary text-brand-primary' : 'border-transparent text-gray-400 hover:text-gray-200'
+            tab === t.key ? 'border-brand-primary text-brand-primary-light' : 'border-transparent text-gray-400 hover:text-gray-200'
           )}>{t.label}</button>
         ))}
       </div>
