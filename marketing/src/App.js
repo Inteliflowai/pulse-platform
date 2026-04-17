@@ -373,7 +373,7 @@ function Hero() {
           </div>
 
           <h1 className="p-title" style={{ fontSize: 72, lineHeight: 0.95, letterSpacing: -2.8, color: BRAND.text, margin: 0 }}>
-            Education
+            Learning Intelligence
             <br />
             <span
               style={{
@@ -382,16 +382,16 @@ function Hero() {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              that works offline
+              for classroom delivery
             </span>
           </h1>
 
-          <p style={{ marginTop: 18, fontSize: 22, lineHeight: 1.6, color: BRAND.text, maxWidth: 680 }}>
-            Pulse delivers video lessons, adaptive quizzes, and scheduled classroom content to school nodes that survive internet outages — with CORE-powered assessment handoff and proactive fleet monitoring.
+          <p style={{ marginTop: 16, fontSize: 26, lineHeight: 1.3, color: BRAND.text, fontWeight: 600, maxWidth: 680, letterSpacing: -0.5 }}>
+            Built on pedagogy. Powered by AI.
           </p>
 
-          <p style={{ marginTop: 12, fontSize: 17, lineHeight: 1.8, color: BRAND.muted, maxWidth: 620 }}>
-            Schedule lessons. Sync content. Students learn. Teachers conduct. All offline-capable.
+          <p style={{ marginTop: 16, fontSize: 19, lineHeight: 1.7, color: BRAND.muted, maxWidth: 660 }}>
+            Curriculum, video, and formative checks orchestrated in real time — online or offline, cloud or on-premises.
           </p>
 
           <div className="p-hero-btns" style={{ marginTop: 26, display: "flex", gap: 14, flexWrap: "wrap" }}>
@@ -599,7 +599,7 @@ function Architecture() {
           <div style={{ marginTop: 20, display: "grid", gap: 14 }}>
             {[
               "Schedule-aware STB auto-load — content starts when the class arrives",
-              "Lesson-complete events fire to CORE for adaptive quizzes",
+              "Lesson-complete events hand off to CORE for formative quizzes",
               "Accessible classroom player with font scaling, high contrast, and i18n",
               "Mobile teacher conductor with swipe gestures and live session stats",
               "Auto-backup with integrity verification, remote diagnostics, maintenance windows",
@@ -626,7 +626,7 @@ function PlatformSection() {
           <div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>Part of the Inteliflow Ecosystem</div>
           <h2 style={{ marginTop: 12, fontSize: 42, lineHeight: 1.08, color: BRAND.text }}>Pulse Works Better With the Full Ecosystem</h2>
           <p style={{ marginTop: 14, maxWidth: 900, color: BRAND.muted, fontSize: 18, lineHeight: 1.85 }}>
-            Pulse handles content delivery and classroom scheduling. When a lesson ends, it hands off to CORE for adaptive assessment. Combined with LIFT (admissions) and SPARK (discovery), you get a complete connected learning ecosystem.
+            Pulse handles content delivery and classroom scheduling. When a lesson ends, it hands off to CORE for formative assessment. Combined with LIFT (admissions) and SPARK (discovery), you get a complete connected learning ecosystem.
           </p>
 
           <div className="p-grid-four" style={{ marginTop: 26, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
