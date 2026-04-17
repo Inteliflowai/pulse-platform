@@ -431,12 +431,13 @@ function Hero() {
                 padding: "16px 22px",
                 borderRadius: 999,
                 border: `1px solid ${BRAND.line}`,
-                background: "transparent",
+                background: BRAND.cardStrong,
                 color: BRAND.text,
                 fontWeight: 700,
+                fontSize: 14,
               }}
             >
-              &#9654; Try Classroom Demo
+              Try Classroom Demo
             </a>
           </div>
         </div>
