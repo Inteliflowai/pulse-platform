@@ -12,7 +12,6 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
 process.env.INTERNAL_API_SECRET = 'test-secret';
 process.env.PULSE_NODE_SECRET = 'test-pulse-secret';
-process.env.NODE_ENV = 'test';
 
 // ── Expose mock factory on globalThis so vi.mock factories can access it ──
 
