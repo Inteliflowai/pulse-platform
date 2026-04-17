@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/wp-content/reactpress/apps/pulse-marketing/static/js/main.d018defc.js",
+    "main.js": "/wp-content/reactpress/apps/pulse-marketing/static/js/main.f713380a.js",
     "index.html": "/wp-content/reactpress/apps/pulse-marketing/index.html",
-    "main.d018defc.js.map": "/wp-content/reactpress/apps/pulse-marketing/static/js/main.d018defc.js.map"
+    "main.f713380a.js.map": "/wp-content/reactpress/apps/pulse-marketing/static/js/main.f713380a.js.map"
   },
   "entrypoints": [
-    "static/js/main.d018defc.js"
+    "static/js/main.f713380a.js"
   ]
 }

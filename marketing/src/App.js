@@ -301,8 +301,7 @@ function Header() {
   return (
     <header
       style={{
-        position: "sticky",
-        top: 0,
+        position: "relative",
         zIndex: 50,
         background: "rgba(18,8,0,0.85)",
         borderBottom: `1px solid ${BRAND.line}`,
