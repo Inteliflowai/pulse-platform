@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm run test:ci && next build",
+  "buildCommand": "pnpm --filter @pulse/shared build && pnpm run test:ci && next build",
   "outputDirectory": ".next",
   "framework": "nextjs",
   "installCommand": "pnpm install"
