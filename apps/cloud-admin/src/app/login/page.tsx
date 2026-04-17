@@ -60,7 +60,7 @@ const SLIDES = [
   },
 ];
 
-const INTERVAL = 7000;
+const INTERVAL = 10000;
 
 // ─── Background Rotator ──────────────────────────────────────────────────────
 function BackgroundRotator() {
