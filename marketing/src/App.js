@@ -1,4 +1,6 @@
 import React, { useEffect } from "react";
+import PulseAnimatedDemo from "./components/PulseAnimatedDemo";
+import PulseClassroomSimulator from "./components/PulseClassroomSimulator";
 
 const ASSET_BASE = "/wp-content/reactpress/apps/pulse-marketing";
 const IMG = (file) => `${ASSET_BASE}/images/${encodeURIComponent(file)}`;
@@ -422,58 +424,24 @@ function Hero() {
             >
               See How It Works
             </a>
+
+            <a
+              href="#classroom-demo"
+              style={{
+                padding: "16px 22px",
+                borderRadius: 999,
+                border: `1px solid ${BRAND.line}`,
+                background: "transparent",
+                color: BRAND.text,
+                fontWeight: 700,
+              }}
+            >
+              &#9654; Try Classroom Demo
+            </a>
           </div>
         </div>
 
-        <Glass className="if-card-hover" style={{ overflow: "hidden", padding: 28, background: "rgba(255,255,255,0.08)" }}>
-          <div style={{ display: "grid", gap: 16 }}>
-            <div style={{ background: "rgba(15,17,23,0.9)", borderRadius: 16, padding: 20, border: `1px solid ${BRAND.line}` }}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                <div style={{ width: 10, height: 10, borderRadius: 999, background: "#ef4444" }} />
-                <div style={{ width: 10, height: 10, borderRadius: 999, background: "#f59e0b" }} />
-                <div style={{ width: 10, height: 10, borderRadius: 999, background: "#10b981" }} />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                {[
-                  { label: "Nodes Online", value: "24", color: "#10b981" },
-                  { label: "Scheduled Classes", value: "156", color: "#f26522" },
-                  { label: "Content Synced", value: "99%", color: "#f59e0b" },
-                ].map((s) => (
-                  <div key={s.label} style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: 14, textAlign: "center" }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
-                    <div style={{ fontSize: 11, color: BRAND.muted, marginTop: 4 }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
-                {[
-                  "Room 101 — 9B Biology starting in 5 min",
-                  "Lagos Academy — lesson complete → CORE quiz",
-                  "Lima Campus — 3 classes scheduled today",
-                ].map((line) => (
-                  <div
-                    key={line}
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      borderRadius: 8,
-                      padding: "10px 14px",
-                      fontSize: 12,
-                      color: BRAND.muted,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <div style={{ width: 6, height: 6, borderRadius: 999, background: "#10b981", flexShrink: 0 }} />
-                    {line}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Glass>
+        <PulseAnimatedDemo />
       </div>
     </Section>
   );
@@ -612,6 +580,21 @@ function Architecture() {
           </div>
         </Glass>
       </div>
+    </Section>
+  );
+}
+
+function ClassroomDemo() {
+  return (
+    <Section id="classroom-demo" style={{ background: "rgba(255,255,255,0.02)" }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>Interactive Demo</div>
+        <h2 style={{ marginTop: 12, fontSize: 44, lineHeight: 1.08, color: BRAND.text }}>Experience the Classroom</h2>
+        <p style={{ marginTop: 14, maxWidth: 700, color: BRAND.muted, fontSize: 18, lineHeight: 1.85, marginInline: "auto" }}>
+          Walk through a real student experience — watch a video, take a CORE quiz, try a Spark prediction, and see your results.
+        </p>
+      </div>
+      <PulseClassroomSimulator />
     </Section>
   );
 }
@@ -831,6 +814,7 @@ export default function App() {
         <Features />
         <HowItWorks />
         <Architecture />
+        <ClassroomDemo />
         <PlatformSection />
         <ContactForm />
         <Footer />
