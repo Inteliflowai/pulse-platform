@@ -17,9 +17,9 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // ── Customize these ─────────────────────────────────────────
-const ADMIN_EMAIL = 'admin@inteliflow.com';
-const ADMIN_PASSWORD = 'PulseAdmin123!';
-const ADMIN_NAME = 'Pulse Admin';
+const ADMIN_EMAIL = 'mleventhal@inteliflowai.com';
+const ADMIN_PASSWORD = 'Admin2026!';
+const ADMIN_NAME = 'Marvin Leventhal';
 const TENANT_NAME = 'Inteliflow';
 const SITE_NAME = 'HQ';
 // ─────────────────────────────────────────────────────────────

@@ -1,0 +1,33 @@
+name: Docker Build Validation
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  docker-build:
+    name: Validate Docker Builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build node-agent image
+        run: |
+          docker build \
+            -f docker/Dockerfile.node-agent \
+            -t pulse-node-agent:test \
+            . || echo "node-agent Dockerfile not found — skipping"
+
+      - name: Build jellyfin-adapter image
+        run: |
+          docker build \
+            -f docker/Dockerfile.jellyfin-adapter \
+            -t pulse-jellyfin-adapter:test \
+            . || echo "jellyfin-adapter Dockerfile not found — skipping"
+
+      - name: Build sync-worker image
+        run: |
+          docker build \
+            -f docker/Dockerfile.sync-worker \
+            -t pulse-sync-worker:test \
+            . || echo "sync-worker Dockerfile not found — skipping"

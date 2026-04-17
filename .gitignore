@@ -13,3 +13,5 @@ apps/*/.env
 *.db-wal
 *.mp4
 *.mkv
+coverage/
+.github/SECRETS.md

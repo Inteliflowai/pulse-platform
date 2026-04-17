@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm run test:ci && next build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "installCommand": "pnpm install"
+}

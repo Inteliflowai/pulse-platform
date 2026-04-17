@@ -26,7 +26,19 @@
       "Bash(gh run:*)",
       "Bash(grep -n \"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\'\" apps/node-agent/src/i18n.ts)",
       "Bash(npm run:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx tsc *)",
+      "Bash(find /c/users/inteliflow/pulse/apps/cloud-admin/src/app/api -name \"route.ts\" -exec head -50 {} \\\\; -print)",
+      "Bash(ls *)",
+      "Bash(mkdir -p apps/cloud-admin/src/app/api/schedules/[id])",
+      "Bash(mkdir -p apps/cloud-admin/src/app/api/schedules/[classroomId]/today)",
+      "Bash(mkdir -p apps/cloud-admin/src/app/api/schedules/[id]/readiness)",
+      "Bash(mkdir -p apps/cloud-admin/src/app/api/schedules/[scheduleId]/readiness)",
+      "Bash(mkdir -p apps/cloud-admin/src/app/api/schedules/classroom/[classroomId]/today)",
+      "Bash(mkdir -p apps/cloud-admin/src/app/api/alerts/subscriptions/\\\\[id\\\\])",
+      "Bash(mkdir -p apps/cloud-admin/src/app/api/nodes/\\\\[nodeId\\\\]/run-diagnostics)",
+      "Bash(mkdir -p apps/cloud-admin/src/app/api/nodes/\\\\[nodeId\\\\]/verify-backup)"
     ]
   }
 }

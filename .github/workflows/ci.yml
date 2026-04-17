@@ -1,43 +1,136 @@
-name: CI
+name: Pulse CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
   pull_request:
     branches: [main]
 
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
+env:
+  NODE_VERSION: '20'
 
+jobs:
+
+  # ── JOB 1: Test all packages ──────────────────────────────────
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
+      - run: pnpm install --frozen-lockfile
       - name: Build shared package
         run: pnpm --filter @pulse/shared build
+      - name: Test cloud-admin
+        run: pnpm --filter @pulse/cloud-admin test:ci
+        env:
+          NODE_ENV: test
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: test-key
+          INTERNAL_API_SECRET: test-secret
+          PULSE_NODE_SECRET: test-pulse-secret
+      - name: Test node-agent
+        run: pnpm --filter @pulse/node-agent test:ci
+        env:
+          NODE_ENV: test
+      - name: Test sync-worker
+        run: pnpm --filter @pulse/sync-worker test:ci
+        env:
+          NODE_ENV: test
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: apps/cloud-admin/coverage/
 
-      - name: Build cloud-admin
-        run: pnpm --filter @pulse/cloud-admin build
-
-      - name: Run tests
-        run: pnpm test
-
-  deploy-production:
-    needs: build-and-test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  # ── JOB 2: Type check ─────────────────────────────────────────
+  typecheck:
+    name: TypeScript Check
     runs-on: ubuntu-latest
     steps:
-      - name: Production deploy
-        run: echo "Vercel auto-deploys main via GitHub integration"
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @pulse/shared build
+      - run: pnpm --filter @pulse/cloud-admin typecheck
+      - run: pnpm --filter @pulse/node-agent typecheck
+      - run: pnpm --filter @pulse/sync-worker typecheck
+
+  # ── JOB 3: Build check ────────────────────────────────────────
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs: [test, typecheck]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @pulse/shared build
+      - name: Build cloud-admin
+        run: pnpm --filter @pulse/cloud-admin build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
+          PULSE_NODE_SECRET: ${{ secrets.PULSE_NODE_SECRET }}
+
+  # ── JOB 4: PR comment with test summary ───────────────────────
+  pr-comment:
+    name: PR Test Summary
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            let summary = '## Test Results\n\n'
+            try {
+              const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'))
+              const total = coverage.total
+              summary += `| Metric | Coverage |\n|---|---|\n`
+              summary += `| Lines | ${total.lines.pct}% |\n`
+              summary += `| Functions | ${total.functions.pct}% |\n`
+              summary += `| Branches | ${total.branches.pct}% |\n`
+            } catch(e) {
+              summary += '_Coverage data not available_'
+            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            })
