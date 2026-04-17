@@ -62,7 +62,7 @@ Two environments — **cloud** (Supabase + Vercel) and **on-prem** (node service
 - `apps/jellyfin-adapter` — Express wrapping Jellyfin REST API (:3101). Asset registration searches all Jellyfin items by path. Only interface to Jellyfin.
 - `apps/sync-worker` — Background worker. Polls cloud for sync jobs, downloads via signed URLs, verifies SHA-256 checksums, copies to Jellyfin media directory (cross-device via copy+delete). Bandwidth throttling via `SYNC_BANDWIDTH_LIMIT_MBPS`. Environment validated on startup.
 - `packages/shared` — TypeScript types, enums, constants, curriculum types, schedule types. Must build before apps.
-- `marketing/` — Standalone React app (CRA) for the marketing landing page. Deployed via WordPress ReactPress plugin at `inteliflowai.com/pulse`. Uses Inteliflow brand palette (purple gradient, Glass cards, Glow orbs). Not part of the pnpm workspace — has its own `package.json`.
+- `marketing/` — Standalone React app (CRA) for the marketing landing page. Deployed via WordPress ReactPress plugin at `inteliflowai.com/pulse`. Uses Pulse brand palette (warm dark brown base `#120800`, burnt orange `#f26522` / deep orange `#e84c1e` accents from the Pulse logo). Glass cards, Glow orbs, inline styles. Not part of the pnpm workspace — has its own `package.json`.
 
 ## Key Pages
 
@@ -198,8 +198,23 @@ Every Supabase query must include a `tenant_id` filter. RLS policies enforce thi
 ### Real-Time Updates
 `src/lib/realtime.ts` provides `useRealtimeTable()` and `useRealtimeRow()` hooks. Realtime enabled on: nodes, sync_jobs, node_events, node_metrics, devices, notifications.
 
+### Brand Theme
+The entire platform uses the Pulse logo's warm color palette:
+- **Tailwind tokens** (`tailwind.config.ts`): `brand-primary` = `#f26522` (Pulse orange), `brand-primary-light` = `#f5803e` (lighter orange for text — higher contrast on dark backgrounds), `brand-bg` = `#110a04` (warm dark brown), `brand-surface` = `#1e1410` (warm surface).
+- All text that was previously `text-brand-primary` uses `text-brand-primary-light` for readability (contrast ratio ~8.5:1).
+- Semantic colors unchanged: `emerald` for success, `yellow` for warnings, `red` for errors — sufficient separation from the orange accent.
+- Help system, sidebar active states, badges, buttons, focus rings all derive from these tokens.
+
+### Login Page
+Sliding CSS art background login page (matches Spark/CORE pattern):
+- 5 CSS-only backgrounds rotating every 7 seconds with slide animation (signal waves, network constellation, warm pulse, sunrise, aurora).
+- Frosted glass card: `blur(40px)`, 50% opacity warm dark brown, 24px border radius.
+- Interactive navigation dots (bottom-right). Captions fade between slides.
+- Forgot password mode. Eye toggle for password visibility.
+- Terms/Privacy links in footer. Role-based redirect after login.
+
 ### Marketing Landing Page
-`marketing/` is a standalone CRA React app using Inteliflow brand system (BRAND palette, Glass/Glow components, inline styles). Deployed to WordPress via ReactPress. CSS overrides WordPress theme padding via `usePageStyles()`. Build with `cd marketing && npm run build`, upload `build/` folder to ReactPress.
+`marketing/` is a standalone CRA React app using Pulse brand palette (dark warm brown base `#120800`, burnt orange `#f26522` / deep orange `#e84c1e` accents, Glass/Glow components, inline styles). Back button links to inteliflowai.com. Deployed to WordPress via ReactPress. CSS overrides WordPress theme padding via `usePageStyles()`. Build with `cd marketing && npm run build`, upload `build/` folder to ReactPress.
 
 ## Environment Setup
 
