@@ -80,10 +80,10 @@ export function HelpButton() {
       <button
         onClick={() => setOpen(true)}
         style={{
-          position: 'fixed', bottom: 24, left: 24, zIndex: 999,
+          position: 'fixed', bottom: 24, right: 24, zIndex: 40,
           width: 48, height: 48, borderRadius: 999,
-          background: '#6366f1', border: 'none', color: '#fff',
-          cursor: 'pointer', boxShadow: '0 4px 20px rgba(99,102,241,0.4)',
+          background: '#f26522', border: 'none', color: '#fff',
+          cursor: 'pointer', boxShadow: '0 4px 20px rgba(242,101,34,0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'transform 0.2s',
         }}
@@ -115,7 +115,7 @@ export function HelpButton() {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <BookOpen size={18} style={{ color: '#6366f1' }} />
+                <BookOpen size={18} style={{ color: '#f26522' }} />
                 <span style={{ fontSize: 16, fontWeight: 700, color: '#e5e7eb' }}>Help Center</span>
               </div>
               <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer' }}>
@@ -128,8 +128,8 @@ export function HelpButton() {
               {(['docs', 'tours'] as const).map((tab) => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{
                   flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
-                  background: 'transparent', color: activeTab === tab ? '#6366f1' : '#6b7280',
-                  borderBottom: activeTab === tab ? '2px solid #6366f1' : '2px solid transparent',
+                  background: 'transparent', color: activeTab === tab ? '#f26522' : '#6b7280',
+                  borderBottom: activeTab === tab ? '2px solid #f26522' : '2px solid transparent',
                 }}>
                   {tab === 'docs' ? 'Documentation' : 'Interactive Tours'}
                 </button>
@@ -157,14 +157,14 @@ export function HelpButton() {
               {activeTab === 'docs' && filteredArticles.map((cat) => (
                 <div key={cat.category} style={{ marginBottom: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <cat.icon size={14} style={{ color: '#6366f1' }} />
+                    <cat.icon size={14} style={{ color: '#f26522' }} />
                     <span style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1.5 }}>{cat.category}</span>
                   </div>
                   {cat.articles.map((article) => (
                     <div key={article.title} style={{
                       marginBottom: 4, borderRadius: 10,
                       border: '1px solid rgba(255,255,255,0.06)',
-                      background: expandedArticle === article.title ? 'rgba(99,102,241,0.06)' : 'transparent',
+                      background: expandedArticle === article.title ? 'rgba(242,101,34,0.06)' : 'transparent',
                     }}>
                       <button
                         onClick={() => setExpandedArticle(expandedArticle === article.title ? null : article.title)}
@@ -204,19 +204,19 @@ export function HelpButton() {
                         display: 'flex', alignItems: 'center', gap: 14,
                         transition: 'border-color 0.2s',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)')}
+                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(242,101,34,0.3)')}
                       onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
                     >
                       <div style={{
-                        width: 40, height: 40, borderRadius: 10, background: 'rgba(99,102,241,0.15)',
+                        width: 40, height: 40, borderRadius: 10, background: 'rgba(242,101,34,0.15)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                       }}>
-                        <Play size={16} style={{ color: '#6366f1' }} />
+                        <Play size={16} style={{ color: '#f26522' }} />
                       </div>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700 }}>{t.title}</div>
                         <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{t.description}</div>
-                        <div style={{ fontSize: 11, color: '#6366f1', marginTop: 4 }}>{t.steps.length} steps</div>
+                        <div style={{ fontSize: 11, color: '#f26522', marginTop: 4 }}>{t.steps.length} steps</div>
                       </div>
                     </button>
                   ))}

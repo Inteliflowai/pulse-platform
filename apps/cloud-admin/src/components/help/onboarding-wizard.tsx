@@ -101,18 +101,18 @@ export function OnboardingWizard() {
     <div style={{
       position: 'fixed', bottom: 24, right: 24, zIndex: 1000,
       width: 380, maxWidth: 'calc(100vw - 48px)',
-      background: '#1e2130', border: '1px solid rgba(99,102,241,0.3)',
+      background: '#1e2130', border: '1px solid rgba(242,101,34,0.3)',
       borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
       overflow: 'hidden',
     }}>
       {/* Header */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(236,72,153,0.1))',
+        background: 'linear-gradient(135deg, rgba(242,101,34,0.15), rgba(236,72,153,0.1))',
         padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Rocket size={16} style={{ color: '#6366f1' }} />
+          <Rocket size={16} style={{ color: '#f26522' }} />
           <span style={{ fontSize: 13, fontWeight: 700, color: '#e5e7eb' }}>Getting Started</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -126,7 +126,7 @@ export function OnboardingWizard() {
       {/* Progress bar */}
       <div style={{ height: 3, background: 'rgba(255,255,255,0.05)' }}>
         <div style={{
-          height: '100%', background: '#6366f1', transition: 'width 0.3s',
+          height: '100%', background: '#f26522', transition: 'width 0.3s',
           width: `${((currentStep + 1) / WIZARD_STEPS.length) * 100}%`,
         }} />
       </div>
@@ -135,10 +135,10 @@ export function OnboardingWizard() {
       <div style={{ padding: 20 }}>
         <div style={{
           width: 44, height: 44, borderRadius: 12,
-          background: 'rgba(99,102,241,0.15)', display: 'flex',
+          background: 'rgba(242,101,34,0.15)', display: 'flex',
           alignItems: 'center', justifyContent: 'center', marginBottom: 14,
         }}>
-          <Icon size={22} style={{ color: '#6366f1' }} />
+          <Icon size={22} style={{ color: '#f26522' }} />
         </div>
 
         <h3 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: '0 0 6px 0' }}>{step.title}</h3>
@@ -147,7 +147,7 @@ export function OnboardingWizard() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={goToStep} style={{
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            padding: '10px 16px', borderRadius: 10, background: '#6366f1', border: 'none',
+            padding: '10px 16px', borderRadius: 10, background: '#f26522', border: 'none',
             color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
           }}>
             {step.action} <ChevronRight size={14} />
@@ -169,7 +169,7 @@ export function OnboardingWizard() {
         {WIZARD_STEPS.map((_, i) => (
           <button key={i} onClick={() => setCurrentStep(i)} style={{
             width: 8, height: 8, borderRadius: 999, border: 'none', cursor: 'pointer',
-            background: i === currentStep ? '#6366f1' : i < currentStep ? '#10b981' : 'rgba(255,255,255,0.1)',
+            background: i === currentStep ? '#f26522' : i < currentStep ? '#10b981' : 'rgba(255,255,255,0.1)',
             transition: 'all 0.2s',
           }} />
         ))}
@@ -189,8 +189,8 @@ export function ShowOnboardingButton() {
   return (
     <button onClick={handleClick} style={{
       display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
-      background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)',
-      color: '#6366f1', fontSize: 12, cursor: 'pointer', fontWeight: 600,
+      background: 'rgba(242,101,34,0.1)', border: '1px solid rgba(242,101,34,0.2)',
+      color: '#f26522', fontSize: 12, cursor: 'pointer', fontWeight: 600,
     }}>
       <Rocket size={12} /> Restart Setup Guide
     </button>

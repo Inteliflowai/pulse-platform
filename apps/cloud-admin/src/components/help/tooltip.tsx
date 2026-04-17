@@ -26,7 +26,7 @@ export function HelpTooltip({ text, children, position = 'top' }: TooltipProps) 
       {show && (
         <div style={{
           position: 'absolute', ...posStyles[position], zIndex: 50,
-          background: '#1e2130', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 10,
+          background: '#1e2130', border: '1px solid rgba(242,101,34,0.3)', borderRadius: 10,
           padding: '8px 12px', fontSize: 12, color: '#d1d5db', whiteSpace: 'normal',
           width: 220, lineHeight: 1.6, boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
           pointerEvents: 'none',

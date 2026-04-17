@@ -129,10 +129,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           >
             <div style={{
               background: '#1e2130',
-              border: '1px solid rgba(99,102,241,0.4)',
+              border: '1px solid rgba(242,101,34,0.4)',
               borderRadius: 16,
               padding: 24,
-              boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.2)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(242,101,34,0.2)',
               color: '#e5e7eb',
             }}>
               {/* Progress dots */}
@@ -141,7 +141,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
                   {steps.map((_, i) => (
                     <div key={i} style={{
                       width: 8, height: 8, borderRadius: 999,
-                      background: i === currentStep ? '#6366f1' : i < currentStep ? '#10b981' : 'rgba(255,255,255,0.15)',
+                      background: i === currentStep ? '#f26522' : i < currentStep ? '#10b981' : 'rgba(255,255,255,0.15)',
                       transition: 'all 0.3s',
                     }} />
                   ))}
@@ -151,7 +151,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
 
-              <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 }}>
+              <div style={{ fontSize: 11, color: '#f26522', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 }}>
                 Step {currentStep + 1} of {steps.length}
               </div>
 
@@ -175,7 +175,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
                   onClick={next}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4, padding: '8px 18px', borderRadius: 8,
-                    background: '#6366f1', border: 'none', color: '#fff', cursor: 'pointer',
+                    background: '#f26522', border: 'none', color: '#fff', cursor: 'pointer',
                     fontSize: 13, fontWeight: 700,
                   }}
                 >
