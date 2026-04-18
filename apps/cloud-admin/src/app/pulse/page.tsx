@@ -52,7 +52,7 @@ const DEMO_SCREENS = [{ label: "Cloud Dashboard", C: DashboardScreen }, { label:
 function PulseAnimatedDemo() {
   const [cur, setCur] = useState(0);
   const [vis, setVis] = useState(true);
-  useEffect(() => { const t = setInterval(() => { setVis(false); setTimeout(() => { setCur(c => (c + 1) % DEMO_SCREENS.length); setVis(true); }, 380); }, 10000); return () => clearInterval(t); }, []);
+  useEffect(() => { const t = setInterval(() => { setVis(false); setTimeout(() => { setCur(c => (c + 1) % DEMO_SCREENS.length); setVis(true); }, 380); }, 7000); return () => clearInterval(t); }, []);
   const S = DEMO_SCREENS[cur].C;
   return <div style={{ maxWidth: 520, width: "100%" }}><div style={{ ...dGlass, overflow: "hidden" }}><div className="p-demo-tabs" style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>{DEMO_SCREENS.map((s, i) => <button key={s.label} onClick={() => { setVis(false); setTimeout(() => { setCur(i); setVis(true); }, 380); }} style={{ flex: 1, padding: "10px 4px", border: "none", cursor: "pointer", background: i === cur ? "rgba(242,101,34,0.12)" : "transparent", borderBottom: i === cur ? `2px solid ${DB.orange}` : "2px solid transparent", color: i === cur ? DB.orange : DB.muted, fontSize: 10, fontWeight: 600, fontFamily: "'DM Sans',system-ui,sans-serif", transition: "all .2s" }}>{s.label}</button>)}</div><div style={{ opacity: vis ? 1 : 0, transition: "opacity 380ms ease-in-out", minHeight: 300 }}><S /></div></div></div>;
 }
