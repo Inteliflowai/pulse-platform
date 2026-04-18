@@ -170,7 +170,7 @@ function Footer() {
       <div style={{ maxWidth: 1140, margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
         <img src="/pulse-logo.png" alt="Pulse" style={{ height: 56 }} />
         <p style={{ fontSize: 14, color: BRAND.muted, textAlign: "center" }}>
-          Learning intelligence for classroom delivery.
+          Offline Learning intelligence for classroom delivery. Built on pedagogy. Powered by AI.
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 12, color: `${BRAND.muted}88` }}>An</span>
@@ -183,7 +183,7 @@ function Footer() {
           <a href="/api-docs" style={{ color: BRAND.muted, textDecoration: "underline", textUnderlineOffset: 3 }}>API Docs</a>
         </div>
         <a href="mailto:pulse@inteliflowai.com" style={{ fontSize: 14, color: BRAND.orange, fontWeight: 500 }}>
-          info@inteliflowai.com
+          pulse@inteliflowai.com
         </a>
         <p style={{ fontSize: 12, color: `${BRAND.muted}66`, textAlign: "center" }}>
           &copy; 2026 Inteliflow &middot; Pulse is a learning delivery infrastructure platform
