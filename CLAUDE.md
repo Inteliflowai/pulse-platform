@@ -66,7 +66,7 @@ Two environments — **cloud** (Supabase + Vercel) and **on-prem** (node service
 
 ## Key Pages
 
-Dashboard: Global Overview, School Dashboard, Classrooms, Curriculum (sequences + quiz builder), Results (quiz analytics with charts), Progress (student tracking), Content (assets + packages + sync jobs), Devices, Users, Analytics (historical trends), Audit Log, Monitoring (fleet cards + comparison table), Search (global), Settings, Releases, Schedule (weekly calendar), Quick Lesson (3-step wizard). Public: Login, Reset Password, Terms of Service, Privacy Policy, API Docs (`/api-docs`).
+Dashboard: Global Overview, School Dashboard, Classrooms, Curriculum (sequences + quiz builder), Results (quiz analytics with charts), Progress (student tracking), Content (assets + packages + sync jobs), Devices, Users, Analytics (historical trends), Audit Log, Monitoring (fleet cards + comparison table), Search (global), Settings, Releases, Schedule (weekly calendar), Quick Lesson (3-step wizard). Public: Login (sliding backgrounds), Reset Password, Terms of Service, Privacy Policy, API Docs (`/api-docs`), Product Landing Page (`/pulse` — animated demo, classroom simulator, testimonials, FAQ).
 
 ## Key Patterns
 
@@ -213,8 +213,16 @@ Sliding CSS art background login page (matches Spark/CORE pattern):
 - Forgot password mode. Eye toggle for password visibility.
 - Terms/Privacy links in footer. Role-based redirect after login.
 
-### Marketing Landing Page
-`marketing/` is a standalone CRA React app using Pulse brand palette (dark warm brown base `#120800`, burnt orange `#f26522` / deep orange `#e84c1e` accents, Glass/Glow components, inline styles). Back button links to inteliflowai.com. Deployed to WordPress via ReactPress. CSS overrides WordPress theme padding via `usePageStyles()`. Build with `cd marketing && npm run build`, upload `build/` folder to ReactPress.
+### Product Landing Page
+Hosted on Vercel at `pulse.inteliflowai.com/pulse` — a `'use client'` Next.js page (`src/app/pulse/page.tsx`) with full metadata (`layout.tsx`).
+
+Sections: Header (back to inteliflowai.com), Hero (animated demo + CTAs), Stats Bar, Features (8 cards), How It Works (3 steps), Architecture (cloud + node cards), Interactive Classroom Demo (simulator), Testimonials (3 quotes), Platform Ecosystem (LIFT/CORE/SPARK/PULSE), FAQ (6 items, accordion), Contact Form (mailto), Footer (CORE-style with Inteliflow logo attribution).
+
+Components: `PulseAnimatedDemo` (4-screen 7s crossfade cycle: Dashboard, Player, Sequence Builder, Conductor), `PulseClassroomSimulator` (4-step interactive: video playback, CORE MCQ quiz with scoring, Spark prediction, per-question results breakdown).
+
+Brand: dark warm brown base (`#120800`), burnt orange `#f26522` / deep orange `#e84c1e` accents, Glass/Glow components, DM Sans font, inline styles. Mobile responsive (720px + 380px breakpoints, nav links hidden, stats grid collapses, hero text scales).
+
+Legacy: `marketing/` (CRA standalone) still exists for ReactPress deployment at `inteliflowai.com/pulse` but the canonical version is now the Vercel-hosted Next.js page.
 
 ## Environment Setup
 
@@ -284,8 +292,12 @@ GitHub Actions pipelines in `.github/workflows/`:
 
 ## Deployment
 
-- **Cloud admin** → Vercel at `pulse.inteliflowai.com`. Root directory: `apps/cloud-admin`. Build gated behind tests via `vercel.json`: `pnpm run test:ci && next build`. Failed tests block deploy.
-- **Marketing page** → WordPress ReactPress at `inteliflowai.com/pulse`. Build `marketing/`, upload `build/` folder.
+- **Cloud admin + landing page** → Vercel at `pulse.inteliflowai.com`. Root directory: `apps/cloud-admin`. Build gated behind tests via `vercel.json`: `pnpm --filter @pulse/shared build && pnpm run test:ci && next build`. Failed tests block deploy.
+  - `/` → redirects to `/login`
+  - `/pulse` → product landing page (animated demo, simulator, testimonials, FAQ)
+  - `/login` → sliding background login page
+  - `/dashboard/*` → platform dashboard
+- **Marketing page (legacy)** → WordPress ReactPress at `inteliflowai.com/pulse`. CRA build in `marketing/`. Canonical version is now the Vercel-hosted `/pulse` route.
 - **Node services** → Docker on school appliance (`docker/install.sh`), or directly via `pnpm dev`.
 - **API docs** at `/api-docs` (no auth).
 - **Health check** at `/api/health` (returns Supabase connectivity status).

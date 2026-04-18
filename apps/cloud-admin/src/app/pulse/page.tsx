@@ -160,6 +160,68 @@ function PlatformSection() {
   return <Section id="platform" style={{ overflow: "hidden" }}><Glow left={-40} top={-10} size={220} from={PULSE_GLOW.from} to={PULSE_GLOW.to} opacity={0.16} /><Glass className="if-card-hover" style={{ padding: 34, position: "relative", overflow: "hidden" }}><div style={{ position: "relative", zIndex: 2 }}><div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>Part of the Inteliflow Ecosystem</div><h2 style={{ marginTop: 12, fontSize: 42, lineHeight: 1.08, color: BRAND.text }}>Pulse Works Better With the Full Ecosystem</h2><p style={{ marginTop: 14, maxWidth: 900, color: BRAND.muted, fontSize: 18, lineHeight: 1.85 }}>Pulse handles content delivery and classroom scheduling. When a lesson ends, it hands off to CORE for formative assessment. Combined with LIFT (admissions) and SPARK (discovery), you get a complete connected learning ecosystem.</p><div className="p-grid-four" style={{ marginTop: 26, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>{[{ name: "LIFT", desc: "Admissions & Placement", color: "#6ee7b7" }, { name: "CORE", desc: "Classroom Learning", color: "#a78bfa" }, { name: "SPARK", desc: "Hands-On Discovery", color: "#f97316" }, { name: "PULSE", desc: "Content Delivery", color: BRAND.orange, active: true }].map(p => <Glass key={p.name} style={{ padding: 20, textAlign: "center", background: (p as any).active ? "rgba(242,101,34,0.15)" : BRAND.cardStrong, borderColor: (p as any).active ? "rgba(242,101,34,0.3)" : BRAND.line }}><div style={{ fontSize: 24, fontWeight: 800, color: p.color }}>{p.name}</div><div style={{ fontSize: 12, color: BRAND.muted, marginTop: 6 }}>{p.desc}</div></Glass>)}</div><div className="p-hero-btns" style={{ marginTop: 22, display: "flex", gap: 12, flexWrap: "wrap" }}><a href="https://inteliflowai.com" style={{ padding: "16px 22px", borderRadius: 999, background: `linear-gradient(135deg, ${BRAND.orange}, ${BRAND.deepOrange})`, color: BRAND.white, fontWeight: 800, boxShadow: "0 10px 30px rgba(242,101,34,0.35)" }}>Explore the Full Ecosystem</a><a href="https://inteliflowai.com/admissions/" style={{ padding: "16px 22px", borderRadius: 999, background: "rgba(255,255,255,0.14)", border: `1px solid ${BRAND.line}`, color: BRAND.text, fontWeight: 700 }}>Visit LIFT</a><a href="https://app.inteliflowai.com/core/" style={{ padding: "16px 22px", borderRadius: 999, background: "rgba(255,255,255,0.14)", border: `1px solid ${BRAND.line}`, color: BRAND.text, fontWeight: 700 }}>Visit CORE</a></div></div></Glass></Section>;
 }
 
+function Testimonials() {
+  const quotes = [
+    { text: "Our rural schools lost 40% of teaching time to connectivity issues. With Pulse, lessons play locally — students haven\u2019t missed a beat since we deployed.", name: "Maria Santos", role: "District IT Director", school: "Maputo Public Schools" },
+    { text: "The Quick Lesson wizard changed how I prep. I upload a video, schedule it, and Pulse handles the rest. My students see the quiz the moment the video ends.", name: "James Okafor", role: "Science Teacher", school: "Lagos Academy" },
+    { text: "Fleet monitoring alerts me before problems become crises. I know every node\u2019s status from my phone. The maintenance windows mean updates never disrupt classes.", name: "Ana Rivera", role: "Systems Administrator", school: "Lima Campus Network" },
+  ];
+  return (
+    <Section id="testimonials">
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>What Educators Say</div>
+        <h2 style={{ marginTop: 12, fontSize: 44, lineHeight: 1.08, color: BRAND.text }}>Trusted by Schools Worldwide</h2>
+      </div>
+      <div className="p-grid-three" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 20 }}>
+        {quotes.map((q) => (
+          <Glass key={q.name} style={{ padding: 28 }}>
+            <div style={{ fontSize: 28, color: BRAND.orange, marginBottom: 12, lineHeight: 1 }}>{"\u201C"}</div>
+            <p style={{ color: BRAND.text, fontSize: 14, lineHeight: 1.75, marginBottom: 20 }}>{q.text}</p>
+            <div style={{ borderTop: `1px solid ${BRAND.line}`, paddingTop: 14 }}>
+              <div style={{ fontWeight: 700, color: BRAND.text, fontSize: 14 }}>{q.name}</div>
+              <div style={{ color: BRAND.muted, fontSize: 12, marginTop: 2 }}>{q.role}</div>
+              <div style={{ color: BRAND.orange, fontSize: 12, marginTop: 2 }}>{q.school}</div>
+            </div>
+          </Glass>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function FAQ() {
+  const [open, setOpen] = useState<number | null>(null);
+  const items = [
+    { q: "Does Pulse work without internet?", a: "Yes. Once content is synced to a school node, everything plays locally \u2014 video streaming, quizzes, student sessions. Results queue locally and sync automatically when connectivity returns." },
+    { q: "What hardware do I need at each school?", a: "A small server or mini PC (we support Docker on any Linux/Windows machine), plus an Android TV box (STB) per classroom for display. Student devices connect via any browser \u2014 phones, tablets, or laptops." },
+    { q: "How does the CORE quiz handoff work?", a: "When a video ends, Pulse fires a lesson-complete event. If CORE is reachable, students are redirected to a personalized quiz in CORE. If offline, Pulse serves a local 3-question fallback quiz." },
+    { q: "Can teachers manage their own schedules?", a: "Yes. Teachers see only their own class groups and can schedule lessons, use the Quick Lesson wizard, and run the mobile conductor \u2014 no admin needed." },
+    { q: "How long does initial setup take?", a: "Cloud admin is instant (Vercel). A school node can be installed and syncing content within 30 minutes using our Docker install script. Device enrollment takes seconds via QR code." },
+    { q: "Is student data protected?", a: "Pulse uses row-level security, multi-tenant isolation, and role-based access. Student data never leaves the tenant boundary. We comply with COPPA, FERPA, and GDPR." },
+  ];
+  return (
+    <Section id="faq" style={{ background: "rgba(255,255,255,0.02)" }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>FAQ</div>
+        <h2 style={{ marginTop: 12, fontSize: 44, lineHeight: 1.08, color: BRAND.text }}>Frequently Asked Questions</h2>
+      </div>
+      <div style={{ maxWidth: 720, margin: "0 auto", display: "grid", gap: 8 }}>
+        {items.map((item, i) => (
+          <div key={i} onClick={() => setOpen(open === i ? null : i)} style={{ background: BRAND.card, border: `1px solid ${open === i ? BRAND.orange + "44" : BRAND.line}`, borderRadius: 14, padding: "18px 22px", cursor: "pointer", transition: "border-color .2s" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: BRAND.text }}>{item.q}</div>
+              <div style={{ fontSize: 18, color: BRAND.muted, flexShrink: 0, transition: "transform .2s", transform: open === i ? "rotate(45deg)" : "none" }}>+</div>
+            </div>
+            {open === i && (
+              <p style={{ marginTop: 12, fontSize: 14, color: BRAND.muted, lineHeight: 1.75 }}>{item.a}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 function ContactForm() {
   return <Section id="contact" style={{ paddingBottom: 16 }}><Glass className="if-card-hover" style={{ padding: 38, position: "relative", overflow: "hidden" }}><Glow left={-20} top={-20} size={180} from={BRAND.orange} to={BRAND.amber} /><Glow right={-20} bottom={-20} size={220} from={BRAND.deepOrange} to={BRAND.amber} /><div style={{ position: "relative", zIndex: 2 }}><div style={{ textAlign: "center" }}><div style={{ color: BRAND.mint, fontSize: 12, textTransform: "uppercase", letterSpacing: 2 }}>Get started</div><h2 style={{ marginTop: 12, fontSize: 42, lineHeight: 1.08, color: BRAND.text }}>Ready to Bring Learning Infrastructure to Your Schools?</h2><p style={{ marginTop: 14, color: BRAND.muted, fontSize: 18, lineHeight: 1.85, maxWidth: 700, marginInline: "auto" }}>Tell us about your school and we&apos;ll show you how Pulse can work for you.</p></div><form style={{ marginTop: 28, maxWidth: 520, marginInline: "auto", display: "grid", gap: 14 }} onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); const subject = encodeURIComponent("Pulse Inquiry: " + (fd.get("school") || "New School")); const body = encodeURIComponent("Name: " + fd.get("name") + "\nSchool: " + fd.get("school") + "\nEmail: " + fd.get("email") + "\nRole: " + fd.get("role") + "\n\nMessage:\n" + fd.get("message")); window.location.href = "mailto:info@inteliflowai.com?subject=" + subject + "&body=" + body; }}><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}><input name="name" placeholder="Full Name" required style={{ padding: "14px 16px", borderRadius: 14, border: `1px solid ${BRAND.line}`, background: "rgba(255,255,255,0.10)", color: BRAND.text, fontSize: 14 }} /><input name="email" type="email" placeholder="Work Email" required style={{ padding: "14px 16px", borderRadius: 14, border: `1px solid ${BRAND.line}`, background: "rgba(255,255,255,0.10)", color: BRAND.text, fontSize: 14 }} /></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}><input name="school" placeholder="School / Organization" required style={{ padding: "14px 16px", borderRadius: 14, border: `1px solid ${BRAND.line}`, background: "rgba(255,255,255,0.10)", color: BRAND.text, fontSize: 14 }} /><select name="role" style={{ padding: "14px 16px", borderRadius: 14, border: `1px solid ${BRAND.line}`, background: "rgba(255,255,255,0.10)", color: BRAND.text, fontSize: 14 }}><option value="">Your Role</option><option value="School Leader">School Leader</option><option value="IT Director">IT Director</option><option value="Teacher">Teacher</option><option value="District Admin">District Admin</option><option value="Other">Other</option></select></div><textarea name="message" placeholder="Tell us about your school and what you're looking for..." rows={4} style={{ padding: "14px 16px", borderRadius: 14, border: `1px solid ${BRAND.line}`, background: "rgba(255,255,255,0.10)", color: BRAND.text, fontSize: 14, resize: "vertical" }} /><button type="submit" style={{ padding: "16px 24px", borderRadius: 999, background: `linear-gradient(135deg, ${BRAND.orange}, ${BRAND.deepOrange})`, color: BRAND.white, fontWeight: 800, border: "none", cursor: "pointer", fontSize: 15, boxShadow: "0 10px 30px rgba(242,101,34,0.35)" }}>Request a Demo</button><p style={{ textAlign: "center", fontSize: 12, color: BRAND.muted, margin: 0 }}>No commitment. We&apos;ll reach out within 24 hours.</p></form><div className="p-hero-btns" style={{ marginTop: 24, display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}><a href="/api-docs" style={{ padding: "14px 22px", borderRadius: 999, background: "rgba(255,255,255,0.14)", border: `1px solid ${BRAND.line}`, color: BRAND.text, fontWeight: 700 }}>API Documentation</a></div></div></Glass></Section>;
 }
@@ -205,6 +267,7 @@ export default function PulseLandingPage() {
     const style = document.createElement("style");
     style.id = id;
     style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
       .pulse-app,.pulse-app *{box-sizing:border-box}
       .pulse-app a{text-decoration:none}
       .pulse-app img{max-width:100%;height:auto;display:block}
@@ -218,7 +281,6 @@ export default function PulseLandingPage() {
       @keyframes pulse-glow{0%{opacity:.1;transform:scale(1)}50%{opacity:.2;transform:scale(1.05)}100%{opacity:.1;transform:scale(1)}}
       .p-float{animation:pulse-float 9s ease-in-out infinite}
       .p-glow{animation:pulse-glow 8s ease-in-out infinite}
-      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
       @media(max-width:1024px){.p-grid-hero,.p-grid-two{grid-template-columns:1fr !important}.p-grid-three,.p-grid-four{grid-template-columns:1fr 1fr !important}}
       @media(max-width:720px){
         .pulse-container{width:calc(100% - 32px)}
@@ -260,7 +322,9 @@ export default function PulseLandingPage() {
       <HowItWorks />
       <Architecture />
       <ClassroomDemoSection />
+      <Testimonials />
       <PlatformSection />
+      <FAQ />
       <ContactForm />
       <Footer />
     </div>
