@@ -165,7 +165,32 @@ function ContactForm() {
 }
 
 function Footer() {
-  return <footer style={{ borderTop: `1px solid ${BRAND.line}`, marginTop: 0, background: "rgba(255,255,255,0.08)" }}><div className="pulse-container" style={{ padding: "26px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}><div style={{ display: "flex", alignItems: "center", gap: 14 }}><img src="/pulse-logo.png" alt="Pulse" style={{ height: 50, width: "auto", objectFit: "contain" }} /><div style={{ color: BRAND.muted, fontSize: 14 }}>Learning, Delivery Infrastructure</div></div><div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 14, flexWrap: "wrap" }}><a href="https://inteliflowai.com" style={{ color: BRAND.muted }}>Inteliflow</a><a href="/api-docs" style={{ color: BRAND.muted }}>API Docs</a><a href="#contact" style={{ color: BRAND.muted }}>Contact Us</a></div><div style={{ color: BRAND.muted, fontSize: 13 }}>&copy; 2026 Inteliflow AI. All rights reserved.</div></div></footer>;
+  return (
+    <footer style={{ background: BRAND.bg, borderTop: `1px solid ${BRAND.line}`, padding: "48px 24px" }}>
+      <div style={{ maxWidth: 1140, margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+        <img src="/pulse-logo.png" alt="Pulse" style={{ height: 56 }} />
+        <p style={{ fontSize: 14, color: BRAND.muted, textAlign: "center" }}>
+          Learning intelligence for classroom delivery.
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 12, color: `${BRAND.muted}88` }}>An</span>
+          <img src="/inteliflow-logo.jpg" alt="Inteliflow" style={{ height: 28, borderRadius: 4 }} />
+          <span style={{ fontSize: 12, color: `${BRAND.muted}88` }}>product</span>
+        </div>
+        <div style={{ display: "flex", gap: 24, fontSize: 13, color: BRAND.muted }}>
+          <a href="/privacy" style={{ color: BRAND.muted, textDecoration: "underline", textUnderlineOffset: 3 }}>Privacy Policy</a>
+          <a href="/terms" style={{ color: BRAND.muted, textDecoration: "underline", textUnderlineOffset: 3 }}>Terms of Service</a>
+          <a href="/api-docs" style={{ color: BRAND.muted, textDecoration: "underline", textUnderlineOffset: 3 }}>API Docs</a>
+        </div>
+        <a href="mailto:info@inteliflowai.com" style={{ fontSize: 14, color: BRAND.orange, fontWeight: 500 }}>
+          info@inteliflowai.com
+        </a>
+        <p style={{ fontSize: 12, color: `${BRAND.muted}66`, textAlign: "center" }}>
+          &copy; 2026 Inteliflow &middot; Pulse is a learning delivery infrastructure platform
+        </p>
+      </div>
+    </footer>
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════
