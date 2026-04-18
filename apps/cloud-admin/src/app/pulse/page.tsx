@@ -182,7 +182,7 @@ function Footer() {
           <a href="/terms" style={{ color: BRAND.muted, textDecoration: "underline", textUnderlineOffset: 3 }}>Terms of Service</a>
           <a href="/api-docs" style={{ color: BRAND.muted, textDecoration: "underline", textUnderlineOffset: 3 }}>API Docs</a>
         </div>
-        <a href="mailto:info@inteliflowai.com" style={{ fontSize: 14, color: BRAND.orange, fontWeight: 500 }}>
+        <a href="mailto:pulse@inteliflowai.com" style={{ fontSize: 14, color: BRAND.orange, fontWeight: 500 }}>
           info@inteliflowai.com
         </a>
         <p style={{ fontSize: 12, color: `${BRAND.muted}66`, textAlign: "center" }}>
