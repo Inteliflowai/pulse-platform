@@ -15,6 +15,9 @@ function makeRequest(body: Record<string, any>) {
 describe('POST /api/sync/enqueue', () => {
   beforeEach(() => {
     seedMockData({
+      // The mocked auth.getUser() returns { id: 'mock-user-id' }; seed a matching
+      // row so the route's tenant-scoped role check passes.
+      users: [{ id: 'mock-user-id', role: 'content_manager', tenant_id: 'tenant-001' } as any],
       packages: [fixtures.package({ status: 'published', target_sites: ['site-001'] })],
       nodes: [fixtures.node({ status: 'active', site_id: 'site-001' })],
     });

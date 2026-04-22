@@ -88,7 +88,7 @@ app.get('/health', async (_req, res) => {
   let wanConnected = false;
   try {
     const r = await fetch(`${CLOUD_API_URL}/api/nodes/${NODE_ID}/config`, {
-      headers: { 'x-node-secret': process.env.SUPABASE_SERVICE_ROLE_KEY ?? '' },
+      headers: { 'X-Node-Token': NODE_TOKEN },
       signal: AbortSignal.timeout(5000),
     });
     wanConnected = r.ok;
@@ -159,7 +159,7 @@ app.get('/enroll', async (req, res) => {
     try {
       await fetch(`${CLOUD_API_URL}/api/devices/${validation.device_id}/enroll`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Node-Token': NODE_TOKEN },
         body: JSON.stringify({ local_session_token: localSessionToken, ip_address: ip }),
       });
     } catch {
@@ -198,7 +198,7 @@ app.get('/classroom', async (req, res) => {
   // Determine WAN status
   let nodeStatus = 'offline';
   try {
-    await fetch(`${CLOUD_API_URL}/api/nodes/${NODE_ID}/config`, { signal: AbortSignal.timeout(3000), headers: { 'x-node-secret': process.env.SUPABASE_SERVICE_ROLE_KEY ?? '' } });
+    await fetch(`${CLOUD_API_URL}/api/nodes/${NODE_ID}/config`, { signal: AbortSignal.timeout(3000), headers: { 'X-Node-Token': NODE_TOKEN } });
     nodeStatus = 'online';
   } catch { /* offline */ }
 
@@ -451,7 +451,7 @@ app.get('/sequences', async (req, res) => {
 
   // Try fetching from cloud, fall back to local cache
   try {
-    const cloudRes = await fetch(`${CLOUD_API_URL}/api/curriculum/sequences`, { signal: AbortSignal.timeout(5000) });
+    const cloudRes = await fetch(`${CLOUD_API_URL}/api/curriculum/sequences`, { signal: AbortSignal.timeout(5000), headers: { 'X-Node-Token': NODE_TOKEN } });
     if (cloudRes.ok) {
       const data: any = await cloudRes.json();
       const sequences = (data.sequences ?? []).filter((s: any) => s.status === 'published');
@@ -462,7 +462,7 @@ app.get('/sequences', async (req, res) => {
 
       const enriched = [];
       for (const seq of sequences) {
-        const itemsRes = await fetch(`${CLOUD_API_URL}/api/curriculum/sequences/${seq.id}`, { signal: AbortSignal.timeout(5000) });
+        const itemsRes = await fetch(`${CLOUD_API_URL}/api/curriculum/sequences/${seq.id}`, { signal: AbortSignal.timeout(5000), headers: { 'X-Node-Token': NODE_TOKEN } });
         if (!itemsRes.ok) continue;
         const itemsData: any = await itemsRes.json();
 
@@ -479,7 +479,7 @@ app.get('/sequences', async (req, res) => {
         for (const item of items) {
           if (item.item_type === 'quiz' && item.quiz_id) {
             try {
-              const quizRes = await fetch(`${CLOUD_API_URL}/api/quiz/${item.quiz_id}`, { signal: AbortSignal.timeout(5000) });
+              const quizRes = await fetch(`${CLOUD_API_URL}/api/quiz/${item.quiz_id}`, { signal: AbortSignal.timeout(5000), headers: { 'X-Node-Token': NODE_TOKEN } });
               if (quizRes.ok) {
                 const quizData: any = await quizRes.json();
                 item.quiz = { ...quizData.quiz, questions: quizData.questions };
@@ -532,7 +532,7 @@ app.get('/sequences/:seqId', async (req, res) => {
   if (!device) { res.status(401).json({ error: 'Invalid token' }); return; }
 
   try {
-    const cloudRes = await fetch(`${CLOUD_API_URL}/api/curriculum/sequences/${req.params.seqId}`, { signal: AbortSignal.timeout(5000) });
+    const cloudRes = await fetch(`${CLOUD_API_URL}/api/curriculum/sequences/${req.params.seqId}`, { signal: AbortSignal.timeout(5000), headers: { 'X-Node-Token': NODE_TOKEN } });
     if (cloudRes.ok) {
       const data: any = await cloudRes.json();
       const allAssets = getLocalAssets();
@@ -550,7 +550,7 @@ app.get('/sequences/:seqId', async (req, res) => {
       for (const item of items) {
         if (item.item_type === 'quiz' && item.quiz_id) {
           try {
-            const quizRes = await fetch(`${CLOUD_API_URL}/api/quiz/${item.quiz_id}`, { signal: AbortSignal.timeout(5000) });
+            const quizRes = await fetch(`${CLOUD_API_URL}/api/quiz/${item.quiz_id}`, { signal: AbortSignal.timeout(5000), headers: { 'X-Node-Token': NODE_TOKEN } });
             if (quizRes.ok) {
               const quizData: any = await quizRes.json();
               item.quiz = { ...quizData.quiz, questions: quizData.questions };
@@ -591,7 +591,7 @@ app.get('/students/search', async (req, res) => {
 
   // Search students from cloud
   try {
-    const cloudRes = await fetch(`${CLOUD_API_URL}/api/curriculum`, { signal: AbortSignal.timeout(5000) });
+    const cloudRes = await fetch(`${CLOUD_API_URL}/api/curriculum`, { signal: AbortSignal.timeout(5000), headers: { 'X-Node-Token': NODE_TOKEN } });
     if (!cloudRes.ok) { res.json({ students: [] }); return; }
 
     // For now, search users with role 'student' from the cloud
@@ -647,7 +647,7 @@ app.post('/quiz/submit', idempotent('quiz-submit'), (req, res) => {
   // Sync to cloud
   fetch(`${CLOUD_API_URL}/api/progress`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Node-Token': NODE_TOKEN },
     body: JSON.stringify({
       quiz_attempts: [{
         id: attemptId, quiz_id, student_id: student_id || device.device_id,
@@ -933,7 +933,7 @@ h1{color:#ef4444;margin-bottom:12px;font-size:20px}p{color:#9ca3af;font-size:14p
 async function syncSchedulesFromCloud(): Promise<void> {
   try {
     const configRes = await fetch(`${CLOUD_API_URL}/api/nodes/${NODE_ID}/config`, {
-      headers: { 'x-node-secret': process.env.SUPABASE_SERVICE_ROLE_KEY ?? '' },
+      headers: { 'X-Node-Token': NODE_TOKEN },
       signal: AbortSignal.timeout(10_000),
     });
     if (!configRes.ok) return;

@@ -1,15 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { requireNodeToken } from '@/lib/node-auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ quizId: string }> }
 ) {
   const { quizId } = await params;
-  const supabase = await createSupabaseServerClient();
 
-  const { data: quiz } = await supabase.from('quiz_definitions').select('*').eq('id', quizId).single();
+  // Dual-mode auth: either a logged-in user (RLS scoped) or a node token.
+  // Nodes need quiz content to serve offline classroom players; users see
+  // quizzes their tenant owns.
+  const nodeTokenPresent = !!request.headers.get('x-node-token');
+  let tenantScope: string | null = null;
+
+  if (nodeTokenPresent) {
+    const auth = await requireNodeToken(request);
+    if (!auth.ok) return auth.response;
+    tenantScope = auth.node.tenant_id;
+  } else {
+    const sb = await createSupabaseServerClient();
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { data: profile } = await sb.from('users').select('tenant_id').eq('id', user.id).single();
+    if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    tenantScope = profile.tenant_id;
+  }
+
+  const supabase = createAdminSupabaseClient();
+  const { data: quiz } = await supabase
+    .from('quiz_definitions')
+    .select('*')
+    .eq('id', quizId)
+    .eq('tenant_id', tenantScope)
+    .single();
   if (!quiz) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const { data: questions } = await supabase
@@ -48,11 +73,24 @@ export async function PATCH(
   { params }: { params: Promise<{ quizId: string }> }
 ) {
   try {
+    const sb = await createSupabaseServerClient();
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { data: profile } = await sb.from('users').select('role, tenant_id').eq('id', user.id).single();
+    if (!profile || !['super_admin', 'tenant_admin', 'site_admin', 'content_manager', 'teacher'].includes(profile.role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+
     const { quizId } = await params;
     const body = await request.json();
     const admin = createAdminSupabaseClient();
 
-    const { error } = await admin.from('quiz_definitions').update(body).eq('id', quizId);
+    // Tenant-scope the update; never let a caller edit quizzes across tenants.
+    const { error } = await admin
+      .from('quiz_definitions')
+      .update(body)
+      .eq('id', quizId)
+      .eq('tenant_id', profile.tenant_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ ok: true });

@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
+    // Only content-capable roles can queue sync jobs.
+    const sb = await createSupabaseServerClient();
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { data: profile } = await sb.from('users').select('role, tenant_id').eq('id', user.id).single();
+    if (!profile || !['super_admin', 'tenant_admin', 'site_admin', 'content_manager'].includes(profile.role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { package_id, node_ids } = body;
 
@@ -20,6 +30,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (pkgErr || !pkg) {
+      return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+    }
+
+    // Don't let a user enqueue a package from another tenant — super_admin excepted.
+    if (profile.role !== 'super_admin' && pkg.tenant_id !== profile.tenant_id) {
       return NextResponse.json({ error: 'Package not found' }, { status: 404 });
     }
 

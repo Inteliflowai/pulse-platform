@@ -6,6 +6,7 @@ import { getEnrolledDeviceCount, getActiveSessionCount } from './db';
 
 const NODE_ID = process.env.NODE_ID ?? '';
 const CLOUD_API_URL = process.env.CLOUD_API_URL ?? '';
+const NODE_TOKEN = process.env.NODE_REGISTRATION_TOKEN ?? '';
 const JELLYFIN_ADAPTER_URL = process.env.JELLYFIN_ADAPTER_URL ?? 'http://jellyfin-adapter:3101';
 
 let startTime = Date.now();
@@ -115,7 +116,7 @@ export async function sendHeartbeat() {
     const payload = await buildHeartbeatPayload();
     await fetch(`${CLOUD_API_URL}/api/nodes/heartbeat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Node-Token': NODE_TOKEN },
       body: JSON.stringify(payload),
     });
   } catch {

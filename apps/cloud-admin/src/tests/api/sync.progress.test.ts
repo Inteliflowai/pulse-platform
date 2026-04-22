@@ -5,11 +5,14 @@ import { POST as progressPOST } from '@/app/api/sync/jobs/[jobId]/progress/route
 import { POST as completePOST } from '@/app/api/sync/jobs/[jobId]/complete/route';
 import { NextRequest } from 'next/server';
 
+const NODE_TOKEN = 'test-node-token';
+const AUTH_HEADERS = { 'Content-Type': 'application/json', 'x-node-token': NODE_TOKEN };
+
 function makeProgressRequest(jobId: string, body: Record<string, any>) {
   return new NextRequest(`http://localhost:3000/api/sync/jobs/${jobId}/progress`, {
     method: 'POST',
     body: JSON.stringify(body),
-    headers: { 'Content-Type': 'application/json' },
+    headers: AUTH_HEADERS,
   });
 }
 
@@ -17,7 +20,7 @@ function makeCompleteRequest(jobId: string, body: Record<string, any>) {
   return new NextRequest(`http://localhost:3000/api/sync/jobs/${jobId}/complete`, {
     method: 'POST',
     body: JSON.stringify(body),
-    headers: { 'Content-Type': 'application/json' },
+    headers: AUTH_HEADERS,
   });
 }
 
@@ -26,7 +29,8 @@ const params = (jobId: string) => Promise.resolve({ jobId });
 describe('POST /api/sync/jobs/[jobId]/progress', () => {
   beforeEach(() => {
     seedMockData({
-      sync_jobs: [fixtures.syncJob({ id: 'job-001', status: 'in_progress' })],
+      nodes: [fixtures.node({ id: 'node-001', status: 'active', registration_token: NODE_TOKEN })],
+      sync_jobs: [fixtures.syncJob({ id: 'job-001', node_id: 'node-001', status: 'in_progress' })],
     });
   });
 
@@ -63,9 +67,10 @@ describe('POST /api/sync/jobs/[jobId]/progress', () => {
 describe('POST /api/sync/jobs/[jobId]/complete', () => {
   beforeEach(() => {
     seedMockData({
+      nodes: [fixtures.node({ id: 'node-001', status: 'active', registration_token: NODE_TOKEN })],
       sync_jobs: [
         {
-          ...fixtures.syncJob({ id: 'job-001', status: 'in_progress' }),
+          ...fixtures.syncJob({ id: 'job-001', node_id: 'node-001', status: 'in_progress' }),
           package_id: 'package-001',
           packages: { name: 'Week 1', tenant_id: 'tenant-001' },
         },

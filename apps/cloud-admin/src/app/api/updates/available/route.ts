@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { requireNodeToken } from '@/lib/node-auth';
 
 export async function GET(request: NextRequest) {
   const nodeId = request.nextUrl.searchParams.get('node_id');
   if (!nodeId) return NextResponse.json({ error: 'Missing node_id' }, { status: 400 });
+
+  const auth = await requireNodeToken(request, { expectedNodeId: nodeId });
+  if (!auth.ok) return auth.response;
 
   const supabase = createAdminSupabaseClient();
 

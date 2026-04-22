@@ -45,6 +45,7 @@ const navItems = [
   { label: 'Search', href: '/dashboard/search', icon: Globe, roles: ['super_admin', 'tenant_admin', 'site_admin', 'content_manager', 'teacher'] },
   { label: 'Fleet Monitor', href: '/dashboard/global/monitoring', icon: Activity, roles: ['super_admin'] },
   { label: 'Fleet Dashboard', href: '/dashboard/global/fleet', icon: Network, roles: ['super_admin'] },
+  { label: 'Platform API Health', href: '/dashboard/global/api-test', icon: Terminal, roles: ['super_admin'] },
   { label: 'Releases', href: '/dashboard/global/releases', icon: Package, roles: ['super_admin'] },
   { label: 'Settings', href: '/dashboard/settings', icon: Settings, roles: ['super_admin', 'tenant_admin'] },
   { label: 'API Test', href: '/dashboard/settings/api-test', icon: Terminal, roles: ['super_admin', 'tenant_admin', 'site_admin', 'content_manager', 'teacher', 'student'] },

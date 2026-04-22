@@ -8,6 +8,7 @@
 import { log } from '../logger';
 
 const CLOUD_API_URL = process.env.CLOUD_API_URL ?? '';
+const NODE_TOKEN = process.env.NODE_REGISTRATION_TOKEN ?? '';
 
 interface CoreQuizPayload {
   external_id: string;
@@ -27,7 +28,7 @@ export async function importCoreQuiz(payload: CoreQuizPayload): Promise<string |
   try {
     const res = await fetch(`${CLOUD_API_URL}/api/quiz`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Node-Token': NODE_TOKEN },
       body: JSON.stringify({
         title: payload.title,
         time_limit_minutes: payload.time_limit_minutes,
@@ -60,7 +61,7 @@ export async function syncCoreResults(results: any[]): Promise<void> {
   try {
     await fetch(`${CLOUD_API_URL}/api/progress`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Node-Token': NODE_TOKEN },
       body: JSON.stringify({ quiz_attempts: results }),
     });
     log('info', 'CORE results synced to cloud', { count: results.length });

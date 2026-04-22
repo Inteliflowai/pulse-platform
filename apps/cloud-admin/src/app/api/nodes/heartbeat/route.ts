@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import type { HeartbeatPayload } from '@pulse/shared';
 import { dispatchAlert } from '@/lib/alerts/dispatcher';
+import { requireNodeToken } from '@/lib/node-auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,20 +13,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing node_id' }, { status: 400 });
     }
 
+    // Authenticate: token must match the node_id in the payload.
+    const auth = await requireNodeToken(request, { expectedNodeId: node_id });
+    if (!auth.ok) return auth.response;
+
     const supabase = createAdminSupabaseClient();
 
-    const { data: node, error: findError } = await supabase
+    // Re-fetch for metadata. We already know status is active (requireNodeToken enforces).
+    const { data: node } = await supabase
       .from('nodes')
       .select('id, status, tenant_id, metadata')
       .eq('id', node_id)
       .single();
 
-    if (findError || !node) {
+    if (!node) {
       return NextResponse.json({ error: 'Node not found' }, { status: 404 });
-    }
-
-    if (node.status !== 'active') {
-      return NextResponse.json({ error: 'Node is not active' }, { status: 400 });
     }
 
     const now = new Date().toISOString();

@@ -19,7 +19,7 @@ export async function reportProgress(jobId: string, bytesTransferred: number, pr
 
   const res = await fetch(`${CLOUD_API_URL}/api/sync/jobs/${jobId}/progress`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Node-Token': NODE_TOKEN },
     body: JSON.stringify(body),
   });
 
@@ -29,7 +29,7 @@ export async function reportProgress(jobId: string, bytesTransferred: number, pr
 export async function reportComplete(jobId: string, status: 'completed' | 'failed', errorMessage?: string) {
   const res = await fetch(`${CLOUD_API_URL}/api/sync/jobs/${jobId}/complete`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Node-Token': NODE_TOKEN },
     body: JSON.stringify({ status, error_message: errorMessage }),
   });
 
@@ -48,7 +48,7 @@ export async function getDownloadUrl(assetId: string): Promise<{ url: string; ex
 export async function sendNodeEvents(events: any[]) {
   const res = await fetch(`${CLOUD_API_URL}/api/nodes/${NODE_ID}/events`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Node-Token': NODE_TOKEN },
     body: JSON.stringify({ events }),
   });
 

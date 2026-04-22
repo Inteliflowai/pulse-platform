@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { requireNodeToken } from '@/lib/node-auth';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
+    const auth = await requireNodeToken(request);
+    if (!auth.ok) return auth.response;
+
     const { jobId } = await params;
     const body = await request.json();
     const { status, error_message } = body;
@@ -16,7 +20,7 @@ export async function POST(
 
     const supabase = createAdminSupabaseClient();
 
-    // Get job for audit log
+    // Get job — must belong to the calling node.
     const { data: job } = await supabase
       .from('sync_jobs')
       .select('id, package_id, node_id, packages(name, tenant_id)')
@@ -25,6 +29,9 @@ export async function POST(
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+    if (job.node_id !== auth.node.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const now = new Date().toISOString();

@@ -49,6 +49,8 @@ describe('multi-tenant isolation', () => {
         fixtures.package({ id: 'pkg-A', tenant_id: 'tenant-A', status: 'published', target_sites: ['site-A'] }),
         fixtures.package({ id: 'pkg-B', tenant_id: 'tenant-B', status: 'published', target_sites: ['site-B'] }),
       ],
+      // Authenticated actor for the enqueue tests — content_manager in tenant-A.
+      users: [{ id: 'mock-user-id', role: 'content_manager', tenant_id: 'tenant-A' } as any],
     });
   });
 

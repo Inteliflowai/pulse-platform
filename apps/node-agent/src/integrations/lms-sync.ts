@@ -9,6 +9,7 @@
 import { log } from '../logger';
 
 const CLOUD_API_URL = process.env.CLOUD_API_URL ?? '';
+const NODE_TOKEN = process.env.NODE_REGISTRATION_TOKEN ?? '';
 const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 let pendingResults: any[] = [];
@@ -44,7 +45,7 @@ async function syncToCloud(): Promise<void> {
 
     const res = await fetch(`${CLOUD_API_URL}/api/progress`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Node-Token': NODE_TOKEN },
       body: JSON.stringify(payload),
     });
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { requireNodeToken } from '@/lib/node-auth';
 
 export async function POST(
   request: NextRequest,
@@ -7,6 +8,10 @@ export async function POST(
 ) {
   try {
     const { nodeId } = await params;
+
+    const auth = await requireNodeToken(request, { expectedNodeId: nodeId });
+    if (!auth.ok) return auth.response;
+
     const body = await request.json();
     const { events } = body;
 
@@ -15,17 +20,6 @@ export async function POST(
     }
 
     const supabase = createAdminSupabaseClient();
-
-    // Validate node exists
-    const { data: node } = await supabase
-      .from('nodes')
-      .select('id')
-      .eq('id', nodeId)
-      .single();
-
-    if (!node) {
-      return NextResponse.json({ error: 'Node not found' }, { status: 404 });
-    }
 
     // Batch insert events
     const rows = events.map((e: any) => ({

@@ -4,11 +4,13 @@ import { fixtures } from '../fixtures';
 import { POST } from '@/app/api/nodes/heartbeat/route';
 import { NextRequest } from 'next/server';
 
+const NODE_TOKEN = 'test-node-token';
+
 function makeRequest(payload: Record<string, any>) {
   return new NextRequest('http://localhost:3000/api/nodes/heartbeat', {
     method: 'POST',
     body: JSON.stringify(payload),
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-node-token': NODE_TOKEN },
   });
 }
 
@@ -40,7 +42,7 @@ function validPayload(overrides: Record<string, any> = {}) {
 describe('POST /api/nodes/heartbeat', () => {
   beforeEach(() => {
     seedMockData({
-      nodes: [fixtures.node({ status: 'active', metadata: {} })],
+      nodes: [fixtures.node({ id: 'node-001', status: 'active', metadata: {}, registration_token: NODE_TOKEN })],
     });
   });
 
@@ -93,7 +95,7 @@ describe('POST /api/nodes/heartbeat', () => {
   it('inserts wan_restored event when wan_connected flips true', async () => {
     // Set previous metadata to show WAN was disconnected
     seedMockData({
-      nodes: [fixtures.node({ status: 'active', metadata: { last_wan_connected: false, cpu_high_count: 0 } })],
+      nodes: [fixtures.node({ id: 'node-001', status: 'active', metadata: { last_wan_connected: false, cpu_high_count: 0 }, registration_token: NODE_TOKEN })],
     });
 
     await POST(makeRequest(validPayload({ wan_connected: true })));
@@ -102,9 +104,11 @@ describe('POST /api/nodes/heartbeat', () => {
     expect(wanEvent).toBeDefined();
   });
 
-  it('returns 404 for unknown node_id', async () => {
+  it('rejects a token that does not match the node_id in payload (401, not 404)', async () => {
+    // Token is valid for node-001; body claims to be "nonexistent".
+    // requireNodeToken enforces expectedNodeId, so we get 401 before 404.
     const res = await POST(makeRequest(validPayload({ node_id: 'nonexistent' })));
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(401);
   });
 
   it('returns server_time in response', async () => {

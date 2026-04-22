@@ -13,10 +13,12 @@ function makeRequest(nodeId: string, headers: Record<string, string> = {}) {
   });
 }
 
+const NODE_TOKEN = 'test-node-token';
+
 describe('GET /api/nodes/[nodeId]/config', () => {
   beforeEach(() => {
     seedMockData({
-      nodes: [fixtures.node({ id: 'node-001', site_id: 'site-001', tenant_id: 'tenant-001' })],
+      nodes: [fixtures.node({ id: 'node-001', site_id: 'site-001', tenant_id: 'tenant-001', status: 'active', registration_token: NODE_TOKEN })],
       classrooms: [fixtures.classroom({ node_id: 'node-001' })],
       packages: [fixtures.package({ status: 'published', tenant_id: 'tenant-001' })],
     });
@@ -24,7 +26,7 @@ describe('GET /api/nodes/[nodeId]/config', () => {
 
   it('returns classrooms array for node', async () => {
     const res = await GET(
-      makeRequest('node-001', { 'x-node-secret': 'test-service-role-key' }),
+      makeRequest('node-001', { 'x-node-token': NODE_TOKEN }),
       { params: params('node-001') }
     );
     expect(res.status).toBe(200);
@@ -35,7 +37,7 @@ describe('GET /api/nodes/[nodeId]/config', () => {
 
   it('returns feature_flags object', async () => {
     const res = await GET(
-      makeRequest('node-001', { 'x-node-secret': 'test-service-role-key' }),
+      makeRequest('node-001', { 'x-node-token': NODE_TOKEN }),
       { params: params('node-001') }
     );
     const body = await res.json();
@@ -45,24 +47,24 @@ describe('GET /api/nodes/[nodeId]/config', () => {
 
   it('returns current_packages manifest refs', async () => {
     const res = await GET(
-      makeRequest('node-001', { 'x-node-secret': 'test-service-role-key' }),
+      makeRequest('node-001', { 'x-node-token': NODE_TOKEN }),
       { params: params('node-001') }
     );
     const body = await res.json();
     expect(Array.isArray(body.current_packages)).toBe(true);
   });
 
-  it('returns 404 for unknown node_id', async () => {
+  it('returns 401 when URL nodeId does not match token (unknown collapsed into 401)', async () => {
     const res = await GET(
-      makeRequest('nonexistent', { 'x-node-secret': 'test-service-role-key' }),
+      makeRequest('nonexistent', { 'x-node-token': NODE_TOKEN }),
       { params: params('nonexistent') }
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(401);
   });
 
   it('requires valid node token in header', async () => {
     const res = await GET(
-      makeRequest('node-001', { 'x-node-secret': 'wrong-secret' }),
+      makeRequest('node-001', { 'x-node-token': 'wrong-token' }),
       { params: params('node-001') }
     );
     expect(res.status).toBe(401);

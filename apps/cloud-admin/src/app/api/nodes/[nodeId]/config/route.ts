@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { requireNodeToken } from '@/lib/node-auth';
 
 export async function GET(
   request: NextRequest,
@@ -7,11 +8,8 @@ export async function GET(
 ) {
   const { nodeId } = await params;
 
-  // Simple shared secret auth
-  const authHeader = request.headers.get('x-node-secret');
-  if (!authHeader || authHeader !== process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireNodeToken(request, { expectedNodeId: nodeId });
+  if (!auth.ok) return auth.response;
 
   const supabase = createAdminSupabaseClient();
 

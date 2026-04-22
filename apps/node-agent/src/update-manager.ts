@@ -7,6 +7,7 @@ import { pipeline } from 'stream/promises';
 
 const CLOUD_API_URL = process.env.CLOUD_API_URL ?? '';
 const NODE_ID = process.env.NODE_ID ?? '';
+const NODE_TOKEN = process.env.NODE_REGISTRATION_TOKEN ?? '';
 const AUTO_UPDATE = process.env.AUTO_UPDATE === 'true';
 // The actual docker-compose invocation is a footgun when running outside Docker
 // (dev, tests). We only apply if the operator opts in explicitly.
@@ -61,7 +62,9 @@ async function checkForUpdates() {
   if (!CLOUD_API_URL || !NODE_ID) return;
 
   try {
-    const res = await fetch(`${CLOUD_API_URL}/api/updates/available?node_id=${NODE_ID}`);
+    const res = await fetch(`${CLOUD_API_URL}/api/updates/available?node_id=${NODE_ID}`, {
+      headers: { 'X-Node-Token': NODE_TOKEN },
+    });
     if (!res.ok) return;
 
     const data: any = await res.json();
@@ -210,7 +213,7 @@ async function reportStatus(assignmentId: string, status: string, error?: string
   try {
     await fetch(`${CLOUD_API_URL}/api/updates/${assignmentId}/status`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Node-Token': NODE_TOKEN },
       body: JSON.stringify({ status, error }),
     });
   } catch {

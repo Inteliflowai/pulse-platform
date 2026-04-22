@@ -9,6 +9,7 @@
 import { log } from '../logger';
 
 const CLOUD_API_URL = process.env.CLOUD_API_URL ?? '';
+const NODE_TOKEN = process.env.NODE_REGISTRATION_TOKEN ?? '';
 
 interface SparkAsset {
   external_id: string;
@@ -46,7 +47,7 @@ export async function reportSparkCompletion(
   try {
     await fetch(`${CLOUD_API_URL}/api/progress`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Node-Token': NODE_TOKEN },
       body: JSON.stringify({
         progress_records: [{
           id: crypto.randomUUID(),
