@@ -14,6 +14,7 @@ import { jellyfinWebhookRouter } from './jellyfin-webhook';
 import { fireLessonComplete, LessonCompletePayload } from './lesson-complete';
 import { startLessonCompleteSync } from './lesson-complete-sync';
 import { getActiveSchedule, getUpcomingSchedule, getAllSchedulesForClassroom } from './schedule-resolver';
+import { idempotent } from './idempotency';
 
 interface EnrolledDevice {
   device_id: string;
@@ -301,7 +302,7 @@ app.get('/classroom/validate-student', (req, res) => {
 });
 
 // ── Lesson-complete (called by classroom player when video ends) ──
-app.post('/lesson-complete', async (req, res) => {
+app.post('/lesson-complete', idempotent('lesson-complete'), async (req, res) => {
   const { token, asset_id, sequence_id, sequence_item_index, student_id, watch_pct, watch_duration_seconds } = req.body;
   if (!token) { res.status(400).json({ error: 'Missing token' }); return; }
 
@@ -496,9 +497,9 @@ app.get('/sequences', async (req, res) => {
         };
         enriched.push(seqData);
 
-        // Cache for offline use
+        // Cache for offline use — pass cloud updated_at for LWW conflict resolution.
         try {
-          cacheSequence(seq.id, seq.name, seqData.grade, seqData.subject, seq.grade_id ?? '', seq.subject_id ?? '', items);
+          cacheSequence(seq.id, seq.name, seqData.grade, seqData.subject, seq.grade_id ?? '', seq.subject_id ?? '', items, (seq as any).updated_at);
         } catch {}
       }
 
@@ -628,7 +629,7 @@ app.post('/students/logout', (req, res) => {
 });
 
 // ── Quiz submission ──
-app.post('/quiz/submit', (req, res) => {
+app.post('/quiz/submit', idempotent('quiz-submit'), (req, res) => {
   const { token, quiz_id, answers, score, max_score, percentage, passed, time_spent, student_id, student_name } = req.body;
   if (!token || !quiz_id) { res.status(400).json({ error: 'Missing fields' }); return; }
 
@@ -679,13 +680,14 @@ app.get('/conductor/state', (req, res) => {
 
 // ── Conductor control (teacher pushes state) ──
 app.post('/conductor/update', (req, res) => {
-  const { token, classroom_id, sequence_id, current_item_index, status } = req.body;
+  const { token, classroom_id, sequence_id, current_item_index, status, client_updated_at } = req.body;
   if (!token || !classroom_id || !sequence_id) { res.status(400).json({ error: 'Missing fields' }); return; }
 
   const device = getEnrolledDevice(token) as EnrolledDevice | null;
   if (!device) { res.status(401).json({ error: 'Invalid token' }); return; }
 
-  setConductorState(classroom_id, sequence_id, current_item_index ?? 0, status ?? 'active', device.device_id);
+  // LWW: client sends its local timestamp; stale writes from a lagging device are dropped.
+  setConductorState(classroom_id, sequence_id, current_item_index ?? 0, status ?? 'active', device.device_id, client_updated_at);
   log('info', 'Conductor state updated', { classroom_id, sequence_id, current_item_index });
 
   res.json({ ok: true });
@@ -999,12 +1001,13 @@ async function main() {
     log('warning', 'Local DB not available — running without persistence', { error: err.message });
   }
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     log('info', `Node Agent listening on port ${PORT}`);
   });
 
   // Start heartbeat + update manager
-  setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+  const intervals: NodeJS.Timeout[] = [];
+  intervals.push(setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS));
   sendHeartbeat();
   startUpdateManager();
   startAutoBackup();
@@ -1012,10 +1015,27 @@ async function main() {
 
   // Sync schedules on startup and every heartbeat cycle
   syncSchedulesFromCloud();
-  setInterval(syncSchedulesFromCloud, HEARTBEAT_INTERVAL_MS);
+  intervals.push(setInterval(syncSchedulesFromCloud, HEARTBEAT_INTERVAL_MS));
 
   // Cleanup expired student sessions every hour
-  setInterval(() => { try { cleanupExpiredSessions(); } catch (e: any) { log('warning', 'Session cleanup failed', { error: e.message }); } }, 60 * 60 * 1000);
+  intervals.push(setInterval(() => { try { cleanupExpiredSessions(); } catch (e: any) { log('warning', 'Session cleanup failed', { error: e.message }); } }, 60 * 60 * 1000));
+
+  // Graceful shutdown: drain HTTP server, clear intervals so docker stop doesn't hard-kill mid-sync.
+  let shuttingDown = false;
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    log('info', 'Shutdown signal received', { signal });
+    for (const i of intervals) clearInterval(i);
+    server.close((err) => {
+      if (err) log('warning', 'HTTP server close error', { error: err.message });
+      process.exit(0);
+    });
+    // Hard-stop backstop: if server.close hangs longer than 10s, force exit.
+    setTimeout(() => process.exit(1), 10_000).unref();
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 main();

@@ -1,7 +1,7 @@
 import { validateEnv } from './env';
 import { initDb } from './db';
-import { startWorker } from './worker';
-import { startHealthServer } from './health';
+import { startWorker, stopWorker } from './worker';
+import { startHealthServer, getHealthServer } from './health';
 import { log } from './logger';
 
 validateEnv();
@@ -18,6 +18,21 @@ async function main() {
 
   startHealthServer();
   startWorker();
+
+  let shutting = false;
+  const shutdown = async (signal: string) => {
+    if (shutting) return;
+    shutting = true;
+    log('info', 'Shutdown signal received', { signal });
+    try { await stopWorker(); } catch {}
+    const srv = getHealthServer();
+    if (srv) srv.close();
+    // Give stdio a tick to flush before exit.
+    setTimeout(() => process.exit(0), 100).unref();
+    setTimeout(() => process.exit(1), 15_000).unref();
+  };
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
 main();

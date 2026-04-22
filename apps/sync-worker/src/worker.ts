@@ -30,6 +30,8 @@ let wanConnected = true;
 let lastSyncAt: string | null = null;
 let activeJobs = 0;
 let queuedEvents: any[] = [];
+let cycleInterval: NodeJS.Timeout | null = null;
+let shuttingDown = false;
 
 export function getWorkerState() {
   return { wanConnected, lastSyncAt, activeJobs };
@@ -38,8 +40,23 @@ export function getWorkerState() {
 export function startWorker() {
   log('info', 'Sync worker started', { pollInterval: SYNC_POLL_INTERVAL_MS });
   syncCycle(); // Run immediately
-  setInterval(syncCycle, SYNC_POLL_INTERVAL_MS);
+  cycleInterval = setInterval(syncCycle, SYNC_POLL_INTERVAL_MS);
 }
+
+export async function stopWorker(): Promise<void> {
+  shuttingDown = true;
+  if (cycleInterval) { clearInterval(cycleInterval); cycleInterval = null; }
+  // Wait for in-flight job to finish (max 10s).
+  const deadline = Date.now() + 10_000;
+  while (activeJobs > 0 && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  if (activeJobs > 0) {
+    log('warning', 'Shutdown timeout with active jobs still running', { activeJobs });
+  }
+}
+
+export function isShuttingDown() { return shuttingDown; }
 
 async function syncCycle() {
   try {

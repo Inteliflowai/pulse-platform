@@ -104,7 +104,7 @@ app.post('/library/refresh', async (_req, res) => {
 });
 
 // Start server
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   log('info', `Jellyfin Adapter listening on port ${PORT}`);
 
   // Verify Jellyfin is reachable on startup
@@ -115,3 +115,14 @@ app.listen(PORT, async () => {
     log('warning', `Jellyfin not reachable at startup: ${err.message}. Will retry on requests.`);
   }
 });
+
+let shutting = false;
+const shutdown = (signal: string) => {
+  if (shutting) return;
+  shutting = true;
+  log('info', 'Shutdown signal received', { signal });
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 10_000).unref();
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

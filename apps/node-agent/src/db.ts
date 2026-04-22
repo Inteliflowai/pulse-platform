@@ -171,7 +171,20 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_cgs_cache_group
       ON class_group_students_cache(class_group_id);
   `);
+
+  // Idempotent column additions for LWW conflict resolution.
+  // SQLite does not support IF NOT EXISTS on ADD COLUMN, so we guard with PRAGMA.
+  addColumnIfMissing('cached_sequences', 'cloud_updated_at', 'TEXT');
+  addColumnIfMissing('conductor_state', 'client_updated_at', 'TEXT');
+
   log('info', 'Local SQLite database initialized', { path: DB_PATH });
+}
+
+function addColumnIfMissing(table: string, column: string, type: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
 }
 
 export function getEnrolledDevice(token: string) {
@@ -254,26 +267,54 @@ export function cleanupExpiredSessions() {
   db.prepare("DELETE FROM student_sessions WHERE created_at < datetime('now', '-24 hours')").run();
 }
 
-// Conductor state
-export function setConductorState(classroomId: string, sequenceId: string, currentItemIndex: number, status: string, teacherId: string) {
+// Conductor state — LWW on client_updated_at to resolve multi-device teacher races.
+// If the caller omits client_updated_at, we always accept (back-compat).
+export function setConductorState(classroomId: string, sequenceId: string, currentItemIndex: number, status: string, teacherId: string, clientUpdatedAt?: string) {
   db.prepare(
-    `INSERT INTO conductor_state (classroom_id, sequence_id, current_item_index, status, teacher_id, updated_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now'))
-     ON CONFLICT(classroom_id) DO UPDATE SET sequence_id = excluded.sequence_id, current_item_index = excluded.current_item_index, status = excluded.status, updated_at = datetime('now')`
-  ).run(classroomId, sequenceId, currentItemIndex, status, teacherId);
+    `INSERT INTO conductor_state (classroom_id, sequence_id, current_item_index, status, teacher_id, updated_at, client_updated_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'), ?)
+     ON CONFLICT(classroom_id) DO UPDATE SET
+       sequence_id = excluded.sequence_id,
+       current_item_index = excluded.current_item_index,
+       status = excluded.status,
+       updated_at = datetime('now'),
+       client_updated_at = excluded.client_updated_at
+     WHERE excluded.client_updated_at IS NULL
+        OR conductor_state.client_updated_at IS NULL
+        OR excluded.client_updated_at >= conductor_state.client_updated_at`
+  ).run(classroomId, sequenceId, currentItemIndex, status, teacherId, clientUpdatedAt ?? null);
 }
 
 export function getConductorState(classroomId: string) {
   return db.prepare('SELECT * FROM conductor_state WHERE classroom_id = ? AND status != ?').get(classroomId, 'completed') ?? null;
 }
 
-// Sequence caching
-export function cacheSequence(seqId: string, name: string, grade: string, subject: string, gradeId: string, subjectId: string, items: any[]) {
+// Sequence caching — last-write-wins on cloud_updated_at.
+// If the incoming row is older than what's cached, drop it silently.
+export function cacheSequence(
+  seqId: string,
+  name: string,
+  grade: string,
+  subject: string,
+  gradeId: string,
+  subjectId: string,
+  items: any[],
+  cloudUpdatedAt?: string,
+) {
   db.prepare(
-    `INSERT INTO cached_sequences (sequence_id, name, grade, subject, grade_id, subject_id, items, cached_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-     ON CONFLICT(sequence_id) DO UPDATE SET name=excluded.name, grade=excluded.grade, subject=excluded.subject, items=excluded.items, cached_at=datetime('now')`
-  ).run(seqId, name, grade, subject, gradeId, subjectId, JSON.stringify(items));
+    `INSERT INTO cached_sequences (sequence_id, name, grade, subject, grade_id, subject_id, items, cached_at, cloud_updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
+     ON CONFLICT(sequence_id) DO UPDATE SET
+       name=excluded.name,
+       grade=excluded.grade,
+       subject=excluded.subject,
+       items=excluded.items,
+       cached_at=datetime('now'),
+       cloud_updated_at=excluded.cloud_updated_at
+     WHERE excluded.cloud_updated_at IS NULL
+        OR cached_sequences.cloud_updated_at IS NULL
+        OR excluded.cloud_updated_at >= cached_sequences.cloud_updated_at`
+  ).run(seqId, name, grade, subject, gradeId, subjectId, JSON.stringify(items), cloudUpdatedAt ?? null);
 }
 
 export function getCachedSequences(): any[] {

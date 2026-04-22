@@ -152,12 +152,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create schedule' }, { status: 500 });
     }
 
-    // 5. Quiz generation (async — don't block)
-    let quizStatus = 'skipped';
+    // 5. Quiz generation — call CORE if configured; fall back to 'unavailable' otherwise.
+    let quizStatus: 'skipped' | 'requested' | 'unavailable' = 'skipped';
     if (generate_quiz && lesson_plan_text) {
-      quizStatus = 'pending';
-      // Fire and forget — quiz generation happens asynchronously
-      // In production, this would call the CORE API to generate questions
+      const coreUrl = process.env.CORE_API_URL;
+      const coreSecret = process.env.CORE_API_SECRET;
+      if (coreUrl && coreSecret) {
+        try {
+          const res = await fetch(`${coreUrl}/api/quiz/generate-from-plan`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${coreSecret}`,
+            },
+            body: JSON.stringify({
+              tenant_id: profile.tenant_id,
+              sequence_id: seq.id,
+              title,
+              grade_band,
+              subject,
+              lesson_plan_text,
+            }),
+            signal: AbortSignal.timeout(5000),
+          });
+          quizStatus = res.ok ? 'requested' : 'unavailable';
+        } catch {
+          quizStatus = 'unavailable';
+        }
+      } else {
+        quizStatus = 'unavailable';
+      }
     }
 
     return NextResponse.json({

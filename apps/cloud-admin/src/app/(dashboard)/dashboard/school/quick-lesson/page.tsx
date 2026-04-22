@@ -98,7 +98,8 @@ export default function QuickLessonPage() {
             <p className="text-muted-foreground text-sm">{form.title} has been scheduled.</p>
             <div className="text-xs space-y-1 text-muted-foreground">
               {result.sync_job_id && <p>Sync job created — content will be delivered to the node.</p>}
-              {result.quiz_generation_status === 'pending' && <p>Quiz generation in progress...</p>}
+              {result.quiz_generation_status === 'requested' && <p>Quiz generation requested from CORE.</p>}
+              {result.quiz_generation_status === 'unavailable' && <p>Quiz auto-generation is not available in this environment — you can attach a quiz manually.</p>}
             </div>
             <div className="flex gap-2 justify-center pt-4">
               <Button variant="outline" onClick={() => { setStep(1); setResult(null); setSelectedAsset(null); setForm({ title: '', subject: '', grade_band: '', class_group_id: '', classroom_id: '', scheduled_date: '', scheduled_time: '08:00', duration_minutes: 60, lesson_plan_text: '', generate_quiz: true }); }}>

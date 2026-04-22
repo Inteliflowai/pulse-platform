@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { writeAuditLog } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,14 +59,14 @@ export async function POST(request: NextRequest) {
       email,
     });
 
-    // Audit log
-    await admin.from('audit_logs').insert({
+    await writeAuditLog(admin, {
       tenant_id: tid,
       user_id: user.id,
       event_type: 'user_invited',
       entity_type: 'user',
       entity_id: authData.user.id,
       description: `Invited ${email} as ${role}`,
+      ip_address: request.headers.get('x-forwarded-for') ?? null,
     });
 
     return NextResponse.json({ ok: true, user_id: authData.user.id });

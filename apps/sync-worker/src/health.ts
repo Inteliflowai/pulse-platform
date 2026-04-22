@@ -1,10 +1,13 @@
-import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { createServer, IncomingMessage, ServerResponse, type Server } from 'http';
 import { getDiskFreeGb } from './downloader';
 import { getWorkerState } from './worker';
 import { log } from './logger';
 
 const PORT = parseInt(process.env.HEALTH_PORT ?? '3200', 10);
 const MEDIA_DIR = process.env.MEDIA_DIR ?? '/data/media';
+
+let _server: Server | null = null;
+export function getHealthServer(): Server | null { return _server; }
 
 export function startHealthServer() {
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -30,4 +33,5 @@ export function startHealthServer() {
   server.listen(PORT, () => {
     log('info', `Health server listening on port ${PORT}`);
   });
+  _server = server;
 }

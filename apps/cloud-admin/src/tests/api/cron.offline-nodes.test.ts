@@ -18,7 +18,7 @@ describe('GET /api/cron/check-offline-nodes', () => {
       nodes: [fixtures.node({ status: 'active', last_seen_at: tenMinutesAgo })],
     });
 
-    const res = await GET(makeRequest({ 'x-cron-secret': 'test-service-role-key' }));
+    const res = await GET(makeRequest({ 'x-cron-secret': 'test-cron-secret' }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.marked_offline).toBe(1);
@@ -33,7 +33,7 @@ describe('GET /api/cron/check-offline-nodes', () => {
       nodes: [fixtures.node({ status: 'active', last_seen_at: oneMinuteAgo })],
     });
 
-    const res = await GET(makeRequest({ 'x-cron-secret': 'test-service-role-key' }));
+    const res = await GET(makeRequest({ 'x-cron-secret': 'test-cron-secret' }));
     const body = await res.json();
     expect(body.marked_offline).toBe(0);
 
@@ -47,7 +47,7 @@ describe('GET /api/cron/check-offline-nodes', () => {
       nodes: [fixtures.node({ status: 'active', last_seen_at: tenMinutesAgo })],
     });
 
-    await GET(makeRequest({ 'x-cron-secret': 'test-service-role-key' }));
+    await GET(makeRequest({ 'x-cron-secret': 'test-cron-secret' }));
 
     const events = mockSupabaseData.node_events;
     const offlineEvent = events.find((e) => e.event_type === 'node_offline');
@@ -69,7 +69,7 @@ describe('GET /api/cron/check-offline-nodes', () => {
       ],
     });
 
-    const res = await GET(makeRequest({ 'x-cron-secret': 'test-service-role-key' }));
+    const res = await GET(makeRequest({ 'x-cron-secret': 'test-cron-secret' }));
     const body = await res.json();
     expect(body.marked_offline).toBe(2);
     expect(body.checked).toBe(2);
