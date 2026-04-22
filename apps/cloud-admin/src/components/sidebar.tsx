@@ -23,33 +23,56 @@ import {
   GraduationCap,
   Network,
   Terminal,
+  Building2,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface SidebarProps {
   user: { email: string; full_name: string | null; role: string };
 }
 
-const navItems = [
-  { label: 'Global Overview', href: '/dashboard/global', icon: Globe, roles: ['super_admin'] },
-  { label: 'Schools & Nodes', href: '/dashboard/school', icon: School, roles: ['super_admin', 'tenant_admin', 'site_admin'] },
-  { label: 'Classrooms', href: '/dashboard/school/classrooms', icon: DoorOpen, roles: ['super_admin', 'tenant_admin', 'site_admin'] },
-  { label: 'Curriculum', href: '/dashboard/school/curriculum', icon: GraduationCap, roles: ['super_admin', 'tenant_admin', 'site_admin', 'teacher'] },
-  { label: 'Results', href: '/dashboard/school/results', icon: FileText, roles: ['super_admin', 'tenant_admin', 'site_admin', 'teacher'] },
-  { label: 'Progress', href: '/dashboard/school/progress', icon: Activity, roles: ['super_admin', 'tenant_admin', 'site_admin', 'teacher'] },
-  { label: 'Content', href: '/dashboard/content', icon: Package, roles: ['super_admin', 'tenant_admin', 'site_admin', 'content_manager'] },
-  { label: 'Devices', href: '/dashboard/devices', icon: Monitor, roles: ['super_admin', 'tenant_admin', 'site_admin'] },
-  { label: 'Users', href: '/dashboard/school/users', icon: Users, roles: ['super_admin', 'tenant_admin', 'site_admin'] },
-  { label: 'Audit Log', href: '/dashboard/school/audit', icon: FileText, roles: ['super_admin', 'tenant_admin', 'site_admin'] },
-  { label: 'Analytics', href: '/dashboard/analytics', icon: Activity, roles: ['super_admin', 'tenant_admin', 'site_admin'] },
-  { label: 'Monitoring', href: '/dashboard/monitoring', icon: Activity, roles: ['super_admin', 'tenant_admin', 'site_admin'] },
-  { label: 'Search', href: '/dashboard/search', icon: Globe, roles: ['super_admin', 'tenant_admin', 'site_admin', 'content_manager', 'teacher'] },
-  { label: 'Fleet Monitor', href: '/dashboard/global/monitoring', icon: Activity, roles: ['super_admin'] },
-  { label: 'Fleet Dashboard', href: '/dashboard/global/fleet', icon: Network, roles: ['super_admin'] },
-  { label: 'Platform API Health', href: '/dashboard/global/api-test', icon: Terminal, roles: ['super_admin'] },
-  { label: 'Releases', href: '/dashboard/global/releases', icon: Package, roles: ['super_admin'] },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings, roles: ['super_admin', 'tenant_admin'] },
-  { label: 'API Test', href: '/dashboard/settings/api-test', icon: Terminal, roles: ['super_admin', 'tenant_admin', 'site_admin', 'content_manager', 'teacher', 'student'] },
+interface NavItem {
+  label: string;
+  href: string;
+  icon: any;
+  roles: string[];
+  group: 'company' | 'product' | 'general';
+}
+
+const navItems: NavItem[] = [
+  // Company Ops (Inteliflow staff only) — customer management and platform operations.
+  { label: 'Customers',         href: '/dashboard/global/customers',  icon: Building2,   roles: ['super_admin'], group: 'company' },
+  { label: 'Licenses',          href: '/dashboard/global/licenses',   icon: ShieldCheck, roles: ['super_admin'], group: 'company' },
+  { label: 'Fleet Dashboard',   href: '/dashboard/global/fleet',      icon: Network,     roles: ['super_admin'], group: 'company' },
+  { label: 'Fleet Monitor',     href: '/dashboard/global/monitoring', icon: Activity,    roles: ['super_admin'], group: 'company' },
+  { label: 'Releases',          href: '/dashboard/global/releases',   icon: Package,     roles: ['super_admin'], group: 'company' },
+  { label: 'Platform API Health', href: '/dashboard/global/api-test', icon: Terminal,    roles: ['super_admin'], group: 'company' },
+  { label: 'Global Overview',   href: '/dashboard/global',            icon: Globe,       roles: ['super_admin'], group: 'company' },
+
+  // Product (customer-side) — everything a school admin / teacher actually works in.
+  { label: 'Schools & Nodes',   href: '/dashboard/school',             icon: School,          roles: ['super_admin', 'tenant_admin', 'site_admin'], group: 'product' },
+  { label: 'Classrooms',        href: '/dashboard/school/classrooms',  icon: DoorOpen,        roles: ['super_admin', 'tenant_admin', 'site_admin'], group: 'product' },
+  { label: 'Curriculum',        href: '/dashboard/school/curriculum',  icon: GraduationCap,   roles: ['super_admin', 'tenant_admin', 'site_admin', 'teacher'], group: 'product' },
+  { label: 'Results',           href: '/dashboard/school/results',     icon: FileText,        roles: ['super_admin', 'tenant_admin', 'site_admin', 'teacher'], group: 'product' },
+  { label: 'Progress',          href: '/dashboard/school/progress',    icon: Activity,        roles: ['super_admin', 'tenant_admin', 'site_admin', 'teacher'], group: 'product' },
+  { label: 'Content',           href: '/dashboard/content',            icon: Package,         roles: ['super_admin', 'tenant_admin', 'site_admin', 'content_manager'], group: 'product' },
+  { label: 'Devices',           href: '/dashboard/devices',            icon: Monitor,         roles: ['super_admin', 'tenant_admin', 'site_admin'], group: 'product' },
+  { label: 'Users',             href: '/dashboard/school/users',       icon: Users,           roles: ['super_admin', 'tenant_admin', 'site_admin'], group: 'product' },
+  { label: 'Audit Log',         href: '/dashboard/school/audit',       icon: FileText,        roles: ['super_admin', 'tenant_admin', 'site_admin'], group: 'product' },
+  { label: 'Analytics',         href: '/dashboard/analytics',          icon: Activity,        roles: ['super_admin', 'tenant_admin', 'site_admin'], group: 'product' },
+  { label: 'Monitoring',        href: '/dashboard/monitoring',         icon: Activity,        roles: ['super_admin', 'tenant_admin', 'site_admin'], group: 'product' },
+  { label: 'Search',            href: '/dashboard/search',             icon: Globe,           roles: ['super_admin', 'tenant_admin', 'site_admin', 'content_manager', 'teacher'], group: 'product' },
+
+  // General — available regardless of role context.
+  { label: 'Settings',          href: '/dashboard/settings',           icon: Settings,        roles: ['super_admin', 'tenant_admin'], group: 'general' },
+  { label: 'API Test',          href: '/dashboard/settings/api-test',  icon: Terminal,        roles: ['super_admin', 'tenant_admin', 'site_admin', 'content_manager', 'teacher', 'student'], group: 'general' },
 ];
+
+const GROUP_LABELS: Record<string, string> = {
+  company: 'Company Ops',
+  product: 'Product Access',
+  general: '',
+};
 
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
@@ -57,6 +80,9 @@ export function Sidebar({ user }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const filteredNav = navItems.filter((item) => item.roles.includes(user.role));
+  // Group by section, preserving the declared order within each group.
+  const navByGroup: Record<string, NavItem[]> = { company: [], product: [], general: [] };
+  for (const item of filteredNav) navByGroup[item.group].push(item);
 
   async function handleLogout() {
     const supabase = createSupabaseBrowserClient();
@@ -88,23 +114,35 @@ export function Sidebar({ user }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
-          {filteredNav.map((item) => {
-            const active = pathname.startsWith(item.href);
+        <nav className="flex-1 space-y-3 overflow-y-auto px-3 py-4">
+          {(['company', 'product', 'general'] as const).map((group) => {
+            const items = navByGroup[group];
+            if (items.length === 0) return null;
+            const label = GROUP_LABELS[group];
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-brand-primary/20 text-brand-primary-light'
-                    : 'text-gray-400 hover:bg-brand-bg hover:text-gray-200'
+              <div key={group} className="space-y-1">
+                {label && (
+                  <p className="px-3 pt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
                 )}
-              >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                <span>{item.label}</span>
-              </Link>
+                {items.map((item) => {
+                  const active = pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                        active
+                          ? 'bg-brand-primary/20 text-brand-primary-light'
+                          : 'text-gray-400 hover:bg-brand-bg hover:text-gray-200'
+                      )}
+                    >
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>

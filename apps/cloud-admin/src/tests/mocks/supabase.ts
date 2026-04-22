@@ -98,6 +98,27 @@ function createQueryBuilder(table: string, initialData?: any[]) {
       }
       return builder;
     },
+    upsert(data: any, opts?: { onConflict?: string }) {
+      // onConflict may be a comma-separated list of columns. We match on all of them.
+      const conflictCols = (opts?.onConflict ?? 'id').split(',').map((c) => c.trim());
+      const rows = Array.isArray(data) ? data : [data];
+      insertedData = [];
+      for (const row of rows) {
+        const existing = mockSupabaseData[table].find((r) =>
+          conflictCols.every((c) => r[c] === row[c])
+        );
+        if (existing) {
+          Object.assign(existing, row);
+          insertedData.push(existing);
+        } else {
+          const toInsert = { ...row };
+          if (!toInsert.id) toInsert.id = `mock-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          mockSupabaseData[table].push(toInsert);
+          insertedData.push(toInsert);
+        }
+      }
+      return builder;
+    },
     update(data: any) {
       updatedData = data;
       return builder;
