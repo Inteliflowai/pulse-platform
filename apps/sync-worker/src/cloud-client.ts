@@ -5,7 +5,9 @@ const NODE_ID = process.env.NODE_ID ?? '';
 const NODE_TOKEN = process.env.NODE_REGISTRATION_TOKEN ?? '';
 
 export async function fetchPendingJobs(): Promise<any[]> {
-  const res = await fetch(`${CLOUD_API_URL}/api/sync/node-jobs/${NODE_ID}`);
+  const res = await fetch(`${CLOUD_API_URL}/api/sync/node-jobs/${NODE_ID}`, {
+    headers: { 'X-Node-Token': NODE_TOKEN },
+  });
   if (!res.ok) throw new Error(`Failed to fetch jobs: ${res.status}`);
   const data: any = await res.json();
   return data.jobs ?? [];

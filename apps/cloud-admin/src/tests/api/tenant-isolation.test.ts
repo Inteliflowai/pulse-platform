@@ -26,8 +26,8 @@ function postJson(url: string, body: any) {
   });
 }
 
-function get(url: string) {
-  return new NextRequest(url, { method: 'GET' });
+function get(url: string, headers: Record<string, string> = {}) {
+  return new NextRequest(url, { method: 'GET', headers });
 }
 
 describe('multi-tenant isolation', () => {
@@ -42,8 +42,8 @@ describe('multi-tenant isolation', () => {
         fixtures.site({ id: 'site-B', tenant_id: 'tenant-B' }),
       ],
       nodes: [
-        fixtures.node({ id: 'node-A', tenant_id: 'tenant-A', site_id: 'site-A', status: 'active' }),
-        fixtures.node({ id: 'node-B', tenant_id: 'tenant-B', site_id: 'site-B', status: 'active' }),
+        fixtures.node({ id: 'node-A', tenant_id: 'tenant-A', site_id: 'site-A', status: 'active', registration_token: 'token-A' }),
+        fixtures.node({ id: 'node-B', tenant_id: 'tenant-B', site_id: 'site-B', status: 'active', registration_token: 'token-B' }),
       ],
       packages: [
         fixtures.package({ id: 'pkg-A', tenant_id: 'tenant-A', status: 'published', target_sites: ['site-A'] }),
@@ -67,19 +67,44 @@ describe('multi-tenant isolation', () => {
   it('node-jobs for node A only returns jobs belonging to node A', async () => {
     seedMockData({
       sync_jobs: [
-        fixtures.syncJob({ id: 'job-A', package_id: 'pkg-A', node_id: 'node-A', status: 'pending' }),
-        fixtures.syncJob({ id: 'job-B', package_id: 'pkg-B', node_id: 'node-B', status: 'pending' }),
+        fixtures.syncJob({ id: 'job-A', tenant_id: 'tenant-A', package_id: 'pkg-A', node_id: 'node-A', status: 'pending' }),
+        fixtures.syncJob({ id: 'job-B', tenant_id: 'tenant-B', package_id: 'pkg-B', node_id: 'node-B', status: 'pending' }),
       ],
     });
 
-    const res = await nodeJobsGET(get('http://localhost/api/sync/node-jobs/node-A'), {
-      params: Promise.resolve({ nodeId: 'node-A' }),
-    });
+    const res = await nodeJobsGET(
+      get('http://localhost/api/sync/node-jobs/node-A', { 'x-node-token': 'token-A' }),
+      { params: Promise.resolve({ nodeId: 'node-A' }) },
+    );
     const body = await res.json();
 
     expect(body.jobs).toHaveLength(1);
     expect(body.jobs[0].id).toBe('job-A');
     expect(body.jobs.some((j: any) => j.id === 'job-B')).toBe(false);
+  });
+
+  it('node-jobs rejects request without X-Node-Token', async () => {
+    const res = await nodeJobsGET(get('http://localhost/api/sync/node-jobs/node-A'), {
+      params: Promise.resolve({ nodeId: 'node-A' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('node-jobs rejects node A URL with node B token (cross-node)', async () => {
+    const res = await nodeJobsGET(
+      get('http://localhost/api/sync/node-jobs/node-A', { 'x-node-token': 'token-B' }),
+      { params: Promise.resolve({ nodeId: 'node-A' }) },
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it('node-jobs rejects a valid token with the wrong nodeId in URL', async () => {
+    // Attacker steals node-A's token but tries to fetch node-B's jobs.
+    const res = await nodeJobsGET(
+      get('http://localhost/api/sync/node-jobs/node-B', { 'x-node-token': 'token-A' }),
+      { params: Promise.resolve({ nodeId: 'node-B' }) },
+    );
+    expect(res.status).toBe(401);
   });
 
   it('enqueue refuses to run on a package that has no active nodes in its own tenant', async () => {
