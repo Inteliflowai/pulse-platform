@@ -106,13 +106,18 @@ export async function POST(request: NextRequest) {
 
       let classGroupId: string;
 
+      // CORE's new export-classes response uses core_class_id as the
+      // canonical key; older responses used cls.id. Accept either.
+      const coreClassId: string = cls.core_class_id ?? cls.id;
+
       if (existing) {
         // Update existing
         await admin
           .from('class_groups')
           .update({
             teacher_id: cls.teacher_id || null,
-            metadata: { core_class_id: cls.id, imported_from: 'core' },
+            core_class_id: coreClassId,
+            metadata: { core_class_id: coreClassId, imported_from: 'core' },
           })
           .eq('id', existing.id);
         classGroupId = existing.id;
@@ -129,7 +134,8 @@ export async function POST(request: NextRequest) {
             name: cls.name,
             teacher_id: cls.teacher_id || user.id,
             status: 'active',
-            metadata: { core_class_id: cls.id, imported_from: 'core' },
+            core_class_id: coreClassId,
+            metadata: { core_class_id: coreClassId, imported_from: 'core' },
           })
           .select('id')
           .single();

@@ -54,7 +54,7 @@ export async function GET(
         id, classroom_id, class_group_id, sequence_id, teacher_id,
         scheduled_date, scheduled_time, duration_minutes,
         recurrence, recurrence_days, recurrence_end_date, status,
-        class_groups(name),
+        class_groups(name, core_class_id),
         learning_sequences(name),
         users(full_name)
       `)
@@ -65,6 +65,9 @@ export async function GET(
       id: s.id,
       classroom_id: s.classroom_id,
       class_group_id: s.class_group_id,
+      // CORE's canonical identity for this class — passed through to the node
+      // so every lesson-complete event can include it without a lookup.
+      core_class_id: s.class_groups?.core_class_id ?? null,
       sequence_id: s.sequence_id,
       teacher_id: s.teacher_id,
       teacher_name: s.users?.full_name ?? null,

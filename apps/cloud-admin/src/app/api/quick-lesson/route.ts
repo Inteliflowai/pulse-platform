@@ -4,7 +4,14 @@ import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 /**
  * POST /api/quick-lesson
- * 3-step quick lesson flow: creates package, schedule, and optionally triggers quiz generation.
+ * 3-step quick lesson flow: creates a package from a video asset, a sequence,
+ * a sync job, and a classroom schedule in one call.
+ *
+ * Pulse does not touch quizzes here. The quiz↔video mapping lives in CORE —
+ * the teacher associates the Pulse video with a quiz inside CORE's lesson
+ * editor. When the video ends, Pulse fires lesson-complete; CORE looks up
+ * the associated quiz and either fans out to the class (shared STB) or
+ * returns a quiz URL (individual device).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +19,7 @@ export async function POST(request: NextRequest) {
     const {
       asset_id, title, subject, grade_band, class_group_id,
       classroom_id, scheduled_date, scheduled_time,
-      duration_minutes, lesson_plan_text, generate_quiz,
+      duration_minutes,
     } = body;
 
     if (!asset_id || !title || !class_group_id || !classroom_id || !scheduled_time) {
@@ -152,43 +159,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create schedule' }, { status: 500 });
     }
 
-    // 5. Quiz generation — call CORE if configured; fall back to 'unavailable' otherwise.
-    let quizStatus: 'skipped' | 'requested' | 'unavailable' = 'skipped';
-    if (generate_quiz && lesson_plan_text) {
-      const coreUrl = process.env.CORE_API_URL;
-      const coreSecret = process.env.CORE_API_SECRET;
-      if (coreUrl && coreSecret) {
-        try {
-          const res = await fetch(`${coreUrl}/api/quiz/generate-from-plan`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${coreSecret}`,
-            },
-            body: JSON.stringify({
-              tenant_id: profile.tenant_id,
-              sequence_id: seq.id,
-              title,
-              grade_band,
-              subject,
-              lesson_plan_text,
-            }),
-            signal: AbortSignal.timeout(5000),
-          });
-          quizStatus = res.ok ? 'requested' : 'unavailable';
-        } catch {
-          quizStatus = 'unavailable';
-        }
-      } else {
-        quizStatus = 'unavailable';
-      }
-    }
-
     return NextResponse.json({
       schedule_id: schedule?.id,
       sequence_id: seq.id,
       sync_job_id: syncJobId,
-      quiz_generation_status: quizStatus,
     }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });

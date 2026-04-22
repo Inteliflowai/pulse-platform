@@ -249,14 +249,22 @@ function pollEvents(){
   }).catch(function(){})
 }
 
-/* Handle lesson_complete event from server */
+/* Handle lesson_complete event from server.
+   CORE decides the mode; Pulse just renders the matching UI.
+   - 'individual'   → this student's device redirects to CORE quiz_url
+   - 'class_fanout' → shared STB: show "quiz posted" overlay
+   - 'pending'      → WAN down or CORE unreachable: "quiz pending" holding screen */
 function handleLessonComplete(ev){
-  if(ev.redirect_to_core===true&&S&&S.id){
-    showCoreRedirect(ev.core_quiz_url);
-  } else if(ev.redirect_to_core===true&&(!S||!S.id)){
-    showCoreLoginPrompt(ev.core_quiz_url);
-  } else if(ev.offline_fallback===true){
-    showOfflineFallbackQuiz();
+  if(ev.mode==='individual'&&ev.core_quiz_url){
+    if(S&&S.id)showCoreRedirect(ev.core_quiz_url);
+    else showCoreLoginPrompt(ev.core_quiz_url);
+  } else if(ev.mode==='class_fanout'){
+    showClassFanoutNotice(ev.students_notified||0);
+  } else if(ev.mode==='pending'){
+    showQuizPending();
+  } else {
+    // Unknown/missing mode — graceful no-op, just advance.
+    nxt();
   }
 }
 
@@ -301,44 +309,39 @@ function showCoreLoginPrompt(url){
   h+='<h2>'+t('lesson_complete_title')+'</h2>';
   h+='<p>'+t('log_into_core')+'</p>';
   if(url){h+='<a href="'+E(url)+'" target="_blank" class="btn" style="margin-bottom:12px">'+t('open_core_now')+'</a><br>';}
-  h+='<button class="btn bo bs" onclick="showOfflineFallbackQuiz()">'+t('continue_without_core')+'</button>';
+  h+='<button class="btn bo bs" onclick="nxt()">'+t('continue_btn')+' &rarr;</button>';
   h+='</div>';
   document.getElementById('ct').innerHTML=h;
 }
 
-/* Offline fallback: 3 MCQ from local sequence data */
-window.showOfflineFallbackQuiz=function(){
-  if(!CS||!CS.items){nxt();return;}
-  // Find quiz items in the current sequence that have questions
-  var quizItem=null;
-  for(var i=CI;i<CS.items.length;i++){
-    if(CS.items[i].item_type==='quiz'&&CS.items[i].quiz&&CS.items[i].quiz.questions){
-      quizItem=CS.items[i];break;
-    }
-  }
-  if(!quizItem||!quizItem.quiz){nxt();return;}
-
-  // Take only first 3 MCQ questions for offline mode
-  var allQ=quizItem.quiz.questions||[];
-  var mcqOnly=allQ.filter(function(q){return q.question_type==='multiple_choice'||q.options&&q.options.length>0});
-  var offlineQ=mcqOnly.slice(0,3);
-  if(offlineQ.length===0){nxt();return;}
-
-  var offlineQuiz={
-    id:quizItem.quiz.id||'offline-'+Date.now(),
-    title:quizItem.quiz.title||'Quiz',
-    questions:offlineQ,
-    time_limit_minutes:null,
-    pass_percentage:quizItem.quiz.pass_percentage||50
-  };
-
-  var h=rTL();
-  h+='<div class="offline-badge"><div class="dot off"></div>'+t('no_internet_standard_quiz')+'</div>';
-  h+='<div id="qc"></div>';
+/* Shared-STB (classroom_fanout): CORE published the quiz to every enrolled
+   student's CORE account. The STB shows a static card; students open CORE
+   on their own devices to take the quiz. No redirect happens from the STB. */
+function showClassFanoutNotice(studentsNotified){
+  var h='<div class="core-redirect">';
+  h+='<h2>'+t('lesson_complete_title')+'</h2>';
+  h+='<p>Nice work! The quiz is now available in CORE for all students in this class';
+  if(studentsNotified)h+=' ('+studentsNotified+' students notified)';
+  h+='.</p>';
+  h+='<p style="font-size:13px;color:#9ca3af;margin-top:8px">Open CORE on your own device to take it when ready.</p>';
+  h+='<button class="btn bo bs" onclick="nxt()" style="margin-top:16px">'+t('continue_btn')+' &rarr;</button>';
+  h+='</div>';
   document.getElementById('ct').innerHTML=h;
-  QS={q:offlineQuiz,a:{},sub:false,st:Date.now(),offline:true};
-  rQ();
-};
+}
+
+/* Quiz pending: WAN is down (or CORE is unreachable). We don't fake a quiz
+   because CORE does real diagnostic scoring + personalized homework that we
+   can't approximate offline. The lesson_complete is already queued locally
+   and the sync worker will flush to CORE when connectivity returns. */
+function showQuizPending(){
+  var h='<div class="core-redirect">';
+  h+='<h2>'+t('lesson_complete_title')+'</h2>';
+  h+='<p>Nice work! Your quiz will be ready when we\\'re back online.</p>';
+  h+='<p style="font-size:13px;color:#9ca3af;margin-top:8px">We saved your completion locally and will send it to CORE automatically.</p>';
+  h+='<button class="btn bo bs" onclick="nxt()" style="margin-top:16px">'+t('continue_btn')+' &rarr;</button>';
+  h+='</div>';
+  document.getElementById('ct').innerHTML=h;
+}
 
 function rSeqL(seqs){var h='';if(CD)h+='<div class="cb"><div><div class="lb">'+t('teacher_conducting')+'</div><div class="tt">'+t('auto_advance')+'</div></div></div>';
   h+='<div style="margin-bottom:16px"><div style="font-size:20px;font-weight:700">'+t('your_learning_content')+'</div><div style="font-size:12px;color:#9ca3af;margin-top:4px">'+seqs.length+' '+t('sequences_available')+'</div></div>';

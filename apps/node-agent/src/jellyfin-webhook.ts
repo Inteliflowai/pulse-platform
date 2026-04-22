@@ -18,11 +18,10 @@ import {
   getStudentSession,
 } from './db';
 import { fireLessonComplete, LessonCompletePayload } from './lesson-complete';
-import { buildCoreQuizUrl } from './core-quiz-url';
+import { getActiveSchedule } from './schedule-resolver';
 
 const NODE_ID = process.env.NODE_ID ?? '';
 const CLOUD_API_URL = process.env.CLOUD_API_URL ?? '';
-const CORE_API_URL = process.env.CORE_API_URL ?? '';
 const LESSON_COMPLETE_THRESHOLD = parseFloat(process.env.LESSON_COMPLETE_THRESHOLD ?? '0.85');
 
 export const jellyfinWebhookRouter: express.Router = Router();
@@ -131,10 +130,16 @@ async function handlePlaybackStop(event: JellyfinWebhookEvent, res: Response) {
   // 7. Calculate watch duration in seconds
   const watchDurationSeconds = Math.round(positionTicks / 10_000_000);
 
+  // Pull core_class_id from the active schedule (if any) so CORE can route
+  // the fan-out without a classroom_id→class_id lookup.
+  const activeSchedule = getActiveSchedule(device.classroom_id);
+  const coreClassId = activeSchedule?.core_class_id ?? null;
+
   // 8. Build and fire lesson-complete
   const payload: LessonCompletePayload = {
     node_id: NODE_ID,
     classroom_id: device.classroom_id,
+    core_class_id: coreClassId,
     asset_id: asset.asset_id,
     sequence_id: null,
     sequence_item_index: null,
@@ -150,52 +155,27 @@ async function handlePlaybackStop(event: JellyfinWebhookEvent, res: Response) {
 
   const result = await fireLessonComplete(payload);
 
-  // 9. Build classroom_event payload
-  let eventPayload: Record<string, any>;
-
-  if (wanConnected && studentSession?.student_id) {
-    // CORE redirect: student devices open CORE for the quiz
-    const coreQuizUrl = buildCoreQuizUrl({
-      core_api_url: CORE_API_URL,
-      sequence_item_id: asset.asset_id,
-      student_id: studentSession.student_id,
-      core_session_token: studentSession.id ?? '',
-      classroom_id: device.classroom_id,
-      node_id: NODE_ID,
-    });
-    eventPayload = {
-      type: 'lesson_complete',
-      asset_id: asset.asset_id,
-      device_id: device.device_id,
-      redirect_to_core: true,
-      core_quiz_url: coreQuizUrl,
-      offline_fallback: false,
-    };
-  } else if (!wanConnected) {
-    // Offline fallback: student devices show local quiz
-    eventPayload = {
-      type: 'lesson_complete',
-      asset_id: asset.asset_id,
-      device_id: device.device_id,
-      redirect_to_core: false,
-      offline_fallback: true,
-    };
-  } else {
-    // WAN up but anonymous — just notify lesson ended, no quiz
-    eventPayload = {
-      type: 'lesson_complete',
-      asset_id: asset.asset_id,
-      device_id: device.device_id,
-      redirect_to_core: false,
-      offline_fallback: false,
-    };
+  // 9. Build classroom_event payload — mode-driven, matching CORE's response.
+  //    'individual'   → redirect student's device to CORE's quiz URL
+  //    'class_fanout' → show "quiz posted, open your device" on the STB overlay
+  //    'pending'      → WAN down or CORE unreachable; "quiz pending, will sync"
+  const eventPayload: Record<string, any> = {
+    type: 'lesson_complete',
+    mode: result.mode,
+    asset_id: asset.asset_id,
+    device_id: device.device_id,
+  };
+  if (result.mode === 'individual' && result.core_quiz_url) {
+    eventPayload.core_quiz_url = result.core_quiz_url;
+  }
+  if (result.mode === 'class_fanout') {
+    eventPayload.students_notified = result.students_notified ?? 0;
   }
 
   log('info', 'lesson_complete_event_emitted', {
     asset_id: asset.asset_id,
     device_id: device.device_id,
-    redirect_to_core: eventPayload.redirect_to_core,
-    offline_fallback: eventPayload.offline_fallback,
+    mode: result.mode,
     synced_to_core: result.synced_to_core,
   });
 

@@ -11,6 +11,8 @@ export interface ActiveSchedule {
   schedule_id: string;
   classroom_id: string;
   class_group_id: string;
+  /** CORE's canonical class identity (null when not yet mapped). */
+  core_class_id: string | null;
   sequence_id: string;
   teacher_id: string | null;
   teacher_name: string | null;
@@ -81,6 +83,7 @@ export function getActiveSchedule(classroomId: string, at?: Date): ActiveSchedul
       schedule_id: s.id,
       classroom_id: s.classroom_id,
       class_group_id: s.class_group_id,
+      core_class_id: s.core_class_id ?? null,
       sequence_id: s.sequence_id,
       teacher_id: s.teacher_id ?? null,
       teacher_name: s.teacher_name ?? null,
@@ -139,6 +142,7 @@ export function getUpcomingSchedule(classroomId: string, withinMinutes: number =
         schedule_id: s.id,
         classroom_id: s.classroom_id,
         class_group_id: s.class_group_id,
+        core_class_id: s.core_class_id ?? null,
         sequence_id: s.sequence_id,
         teacher_id: s.teacher_id ?? null,
         teacher_name: s.teacher_name ?? null,
@@ -179,6 +183,7 @@ export function getAllSchedulesForClassroom(classroomId: string, date: Date): Ac
       schedule_id: s.id,
       classroom_id: s.classroom_id,
       class_group_id: s.class_group_id,
+      core_class_id: s.core_class_id ?? null,
       sequence_id: s.sequence_id,
       teacher_id: s.teacher_id ?? null,
       teacher_name: s.teacher_name ?? null,

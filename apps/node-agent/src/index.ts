@@ -319,9 +319,15 @@ app.post('/lesson-complete', idempotent('lesson-complete'), async (req, res) => 
   const classroom = getClassroomCache(device.classroom_id) as any;
   const deliveryMode = classroom?.delivery_mode === 'pulse_stb' ? 'pulse_stb' : 'pulse_local';
 
+  // Pull core_class_id from the currently-active schedule so CORE can route
+  // the quiz fan-out (shared STB) without a classroom_id→class_id lookup.
+  const activeSchedule = getActiveSchedule(device.classroom_id);
+  const coreClassId = activeSchedule?.core_class_id ?? null;
+
   const payload: LessonCompletePayload = {
     node_id: NODE_ID,
     classroom_id: device.classroom_id,
+    core_class_id: coreClassId,
     asset_id: asset_id ?? '',
     sequence_id: sequence_id ?? null,
     sequence_item_index: sequence_item_index ?? null,
@@ -337,40 +343,20 @@ app.post('/lesson-complete', idempotent('lesson-complete'), async (req, res) => 
 
   const result = await fireLessonComplete(payload);
 
-  // Build classroom event
-  let eventPayload: Record<string, any>;
-  if (wanConnected && student_id) {
-    const { buildCoreQuizUrl } = await import('./core-quiz-url');
-    const studentSession = getStudentSession(token) as any;
-    const coreQuizUrl = buildCoreQuizUrl({
-      core_api_url: CORE_API_URL,
-      sequence_item_id: asset_id ?? '',
-      student_id: student_id,
-      core_session_token: studentSession?.id ?? '',
-      classroom_id: device.classroom_id,
-      node_id: NODE_ID,
-    });
-    eventPayload = {
-      redirect_to_core: true,
-      core_quiz_url: coreQuizUrl,
-      offline_fallback: false,
-      asset_id: asset_id,
-      device_id: device.device_id,
-    };
-  } else if (!wanConnected) {
-    eventPayload = {
-      redirect_to_core: false,
-      offline_fallback: true,
-      asset_id: asset_id,
-      device_id: device.device_id,
-    };
-  } else {
-    eventPayload = {
-      redirect_to_core: false,
-      offline_fallback: false,
-      asset_id: asset_id,
-      device_id: device.device_id,
-    };
+  // Event payload follows the mode CORE decided (or 'pending' if WAN is down
+  // or CORE was unreachable). The classroom player / STB overlay branches on
+  // `mode` to decide whether to redirect, show a fan-out notice, or show the
+  // "quiz pending" holding screen.
+  const eventPayload: Record<string, any> = {
+    mode: result.mode,
+    asset_id: asset_id,
+    device_id: device.device_id,
+  };
+  if (result.mode === 'individual' && result.core_quiz_url) {
+    eventPayload.core_quiz_url = result.core_quiz_url;
+  }
+  if (result.mode === 'class_fanout') {
+    eventPayload.students_notified = result.students_notified ?? 0;
   }
 
   // Emit to classroom events buffer
@@ -962,6 +948,7 @@ async function syncSchedulesFromCloud(): Promise<void> {
           recurrence_days: JSON.stringify(s.recurrence_days ?? []),
           recurrence_end_date: s.recurrence_end_date ?? null,
           status: s.status ?? 'scheduled',
+          core_class_id: s.core_class_id ?? null,
         });
       } catch {}
     }

@@ -176,6 +176,9 @@ export function initDb() {
   // SQLite does not support IF NOT EXISTS on ADD COLUMN, so we guard with PRAGMA.
   addColumnIfMissing('cached_sequences', 'cloud_updated_at', 'TEXT');
   addColumnIfMissing('conductor_state', 'client_updated_at', 'TEXT');
+  // CORE's canonical class identity, cached from the cloud config endpoint
+  // so lesson-complete events can pass core_class_id without a round trip.
+  addColumnIfMissing('classroom_schedule_cache', 'core_class_id', 'TEXT');
 
   log('info', 'Local SQLite database initialized', { path: DB_PATH });
 }
@@ -390,13 +393,14 @@ export function upsertScheduleCache(schedule: {
   sequence_name: string | null; scheduled_date: string | null; scheduled_time: string;
   duration_minutes: number; recurrence: string; recurrence_days: string;
   recurrence_end_date: string | null; status: string;
+  core_class_id?: string | null;
 }) {
   db.prepare(
     `INSERT INTO classroom_schedule_cache
      (id, classroom_id, class_group_id, sequence_id, teacher_id, teacher_name,
       class_group_name, sequence_name, scheduled_date, scheduled_time, duration_minutes,
-      recurrence, recurrence_days, recurrence_end_date, status, cached_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      recurrence, recurrence_days, recurrence_end_date, status, core_class_id, cached_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
      ON CONFLICT(id) DO UPDATE SET
       classroom_id=excluded.classroom_id, class_group_id=excluded.class_group_id,
       sequence_id=excluded.sequence_id, teacher_id=excluded.teacher_id,
@@ -405,13 +409,14 @@ export function upsertScheduleCache(schedule: {
       scheduled_time=excluded.scheduled_time, duration_minutes=excluded.duration_minutes,
       recurrence=excluded.recurrence, recurrence_days=excluded.recurrence_days,
       recurrence_end_date=excluded.recurrence_end_date, status=excluded.status,
+      core_class_id=excluded.core_class_id,
       cached_at=datetime('now')`
   ).run(
     schedule.id, schedule.classroom_id, schedule.class_group_id, schedule.sequence_id,
     schedule.teacher_id, schedule.teacher_name, schedule.class_group_name,
     schedule.sequence_name, schedule.scheduled_date, schedule.scheduled_time,
     schedule.duration_minutes, schedule.recurrence, schedule.recurrence_days,
-    schedule.recurrence_end_date, schedule.status
+    schedule.recurrence_end_date, schedule.status, schedule.core_class_id ?? null
   );
 }
 
