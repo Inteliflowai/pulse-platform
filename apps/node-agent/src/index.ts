@@ -4,7 +4,7 @@ import { validateEnv } from './env';
 import { log } from './logger';
 
 validateEnv();
-import { initDb, getEnrolledDevice, upsertEnrolledDevice, getClassroomCache, upsertClassroomCache, getLocalPackages, getLocalAssets, getEnrolledDeviceCount, getActiveSessionCount, insertPlaybackSession, touchDevice, createStudentSession, getStudentSession, clearStudentSession, setConductorState, getConductorState, saveLocalQuizAttempt, cacheSequence, getCachedSequences, getCachedSequence, cleanupExpiredSessions, upsertScheduleCache, deleteScheduleCacheNotIn, updateEnrolledDeviceSchedule, isStudentInClassGroup, upsertClassGroupStudent } from './db';
+import { initDb, getEnrolledDevice, upsertEnrolledDevice, getClassroomCache, upsertClassroomCache, getLocalPackages, getLocalAssets, getEnrolledDeviceCount, getActiveSessionCount, insertPlaybackSession, touchDevice, createStudentSession, getStudentSession, clearStudentSession, setConductorState, getConductorState, saveLocalQuizAttempt, cacheSequence, getCachedSequences, getCachedSequence, cleanupExpiredSessions, upsertScheduleCache, deleteScheduleCacheNotIn, updateEnrolledDeviceSchedule, isStudentInClassGroup, upsertClassGroupStudent, upsertIntegrationCredential, deleteIntegrationCredentialsNotIn } from './db';
 import { renderClassroomPlayer, ScheduleInfo } from './classroom-player';
 import { sendHeartbeat } from './heartbeat';
 import { startUpdateManager, setMaintenanceWindow } from './update-manager';
@@ -968,6 +968,18 @@ async function syncSchedulesFromCloud(): Promise<void> {
     if (schedules.length > 0) {
       log('info', 'Schedules synced from cloud', { count: schedules.length });
     }
+
+    // Sync integration credentials (per-tenant CORE/SPARK/LIFT Bearer keys).
+    // The cloud only ships 'active' rows; any service we had cached but
+    // no longer appears here has been revoked or not yet re-provisioned.
+    const creds = (config.integration_credentials ?? {}) as Record<string, { api_key: string; api_url: string | null }>;
+    const activeServices: string[] = [];
+    for (const [service, c] of Object.entries(creds)) {
+      if (c?.api_key) {
+        try { upsertIntegrationCredential(service, c.api_key, c.api_url ?? null); activeServices.push(service); } catch {}
+      }
+    }
+    try { deleteIntegrationCredentialsNotIn(activeServices); } catch {}
 
     // Sync maintenance window from node metadata
     const classroomsList = config.classrooms ?? [];

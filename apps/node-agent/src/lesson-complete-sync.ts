@@ -11,12 +11,21 @@ import {
   markLessonCompletionSynced,
   markLessonCompletionFailed,
   incrementLessonCompletionAttempts,
+  getIntegrationCredential,
 } from './db';
 
-const CORE_API_URL = process.env.CORE_API_URL ?? '';
-const CORE_API_SECRET = process.env.CORE_API_SECRET ?? '';
+const CORE_API_URL_ENV = process.env.CORE_API_URL ?? '';
+const CORE_API_SECRET_ENV = process.env.CORE_API_SECRET ?? '';
 const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const MAX_RETRY_ATTEMPTS = 10;
+
+function coreCredentials(): { url: string; secret: string } {
+  try {
+    const cached = getIntegrationCredential('core');
+    if (cached?.api_key) return { url: cached.api_url || CORE_API_URL_ENV, secret: cached.api_key };
+  } catch {}
+  return { url: CORE_API_URL_ENV, secret: CORE_API_SECRET_ENV };
+}
 
 export function startLessonCompleteSync(): void {
   log('info', 'Lesson-complete sync worker started', { interval_ms: SYNC_INTERVAL });
@@ -37,23 +46,26 @@ async function syncLessonCompletions(): Promise<void> {
   let synced = 0;
   let failed = 0;
 
+  const { url: coreUrl, secret: coreSecret } = coreCredentials();
+
   for (const row of rows) {
     try {
-      const res = await fetch(`${CORE_API_URL}/api/attempts/pulse-lesson-complete`, {
+      const res = await fetch(`${coreUrl}/api/attempts/pulse-lesson-complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Pulse-Secret': CORE_API_SECRET,
+          'Authorization': `Bearer ${coreSecret}`,
         },
         body: JSON.stringify({
           node_id: row.node_id,
           classroom_id: row.classroom_id,
+          core_class_id: row.core_class_id ?? null,
           asset_id: row.asset_id,
           sequence_id: row.sequence_id,
           sequence_item_index: row.sequence_item_index,
           student_id: row.student_id,
           device_id: row.device_id,
-          watch_pct: row.watch_pct,
+          watch_pct: typeof row.watch_pct === 'number' ? row.watch_pct / 100 : 0,
           watch_duration_seconds: row.watch_duration_seconds,
           delivery_mode: row.delivery_mode,
           completed_at: row.completed_at,

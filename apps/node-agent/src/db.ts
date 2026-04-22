@@ -170,6 +170,17 @@ export function initDb() {
 
     CREATE INDEX IF NOT EXISTS idx_cgs_cache_group
       ON class_group_students_cache(class_group_id);
+
+    -- Per-service integration credentials pushed from the cloud config
+    -- endpoint. Primary key is service so we keep exactly one active row
+    -- per integration. api_key is plaintext at rest (same model as other
+    -- tokens stored on the node); filesystem perms protect DATA_DIR.
+    CREATE TABLE IF NOT EXISTS integration_credentials_cache (
+      service     TEXT PRIMARY KEY,
+      api_key     TEXT NOT NULL,
+      api_url     TEXT,
+      cached_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // Idempotent column additions for LWW conflict resolution.
@@ -433,6 +444,34 @@ export function getSchedulesForClassroom(classroomId: string): any[] {
   return db.prepare(
     "SELECT * FROM classroom_schedule_cache WHERE classroom_id = ? AND status != 'cancelled' ORDER BY scheduled_time"
   ).all(classroomId);
+}
+
+// Integration credentials (CORE / SPARK / LIFT Bearer keys pushed from cloud).
+export function upsertIntegrationCredential(service: string, apiKey: string, apiUrl: string | null) {
+  db.prepare(
+    `INSERT INTO integration_credentials_cache (service, api_key, api_url, cached_at)
+     VALUES (?, ?, ?, datetime('now'))
+     ON CONFLICT(service) DO UPDATE SET
+       api_key=excluded.api_key,
+       api_url=excluded.api_url,
+       cached_at=datetime('now')`
+  ).run(service, apiKey, apiUrl);
+}
+
+export function getIntegrationCredential(service: string): { api_key: string; api_url: string | null } | null {
+  const row = db.prepare('SELECT api_key, api_url FROM integration_credentials_cache WHERE service = ?').get(service) as
+    | { api_key: string; api_url: string | null }
+    | undefined;
+  return row ?? null;
+}
+
+export function deleteIntegrationCredentialsNotIn(services: string[]) {
+  if (services.length === 0) {
+    db.prepare('DELETE FROM integration_credentials_cache').run();
+    return;
+  }
+  const placeholders = services.map(() => '?').join(',');
+  db.prepare(`DELETE FROM integration_credentials_cache WHERE service NOT IN (${placeholders})`).run(...services);
 }
 
 export function getAllSchedules(): any[] {

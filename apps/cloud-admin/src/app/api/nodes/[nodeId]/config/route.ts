@@ -104,6 +104,27 @@ export async function GET(
     }
   }
 
+  // Per-tenant integration credentials (CORE Bearer key + optional URL
+  // override). The node caches these in SQLite and uses them instead of
+  // env vars on every lesson-complete / export-classes call. Only active
+  // credentials are shipped — a 'not_provisioned' or 'revoked' row leaves
+  // the node falling back to its env-var CORE_API_SECRET (if set).
+  const { data: creds } = await supabase
+    .from('tenant_integration_credentials')
+    .select('service, api_key, api_url, status')
+    .eq('tenant_id', node.tenant_id)
+    .eq('status', 'active');
+
+  const integration_credentials: Record<string, { api_key: string; api_url: string | null }> = {};
+  for (const c of (creds ?? [])) {
+    if (c.api_key) {
+      integration_credentials[c.service] = {
+        api_key: c.api_key,
+        api_url: c.api_url ?? null,
+      };
+    }
+  }
+
   return NextResponse.json({
     classrooms: classrooms ?? [],
     device_policies: {},
@@ -115,5 +136,6 @@ export async function GET(
     })),
     schedules,
     class_group_students: classGroupStudents,
+    integration_credentials,
   });
 }
