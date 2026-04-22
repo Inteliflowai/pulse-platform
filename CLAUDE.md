@@ -13,7 +13,7 @@ pnpm install                              # Install dependencies
 pnpm --filter @pulse/shared build         # Build shared (required before other builds)
 pnpm build                                # Build everything
 pnpm dev                                  # Run all services in dev mode
-pnpm test                                 # Run all tests via turbo (151 tests)
+pnpm test                                 # Run all tests via turbo (209 tests)
 pnpm test:ci                              # Verbose test output for CI
 pnpm test:coverage                        # Run with coverage report
 pnpm typecheck                            # TypeScript check all packages
@@ -48,7 +48,7 @@ pulse/
   marketing/            # React landing page for inteliflowai.com/pulse (ReactPress)
   docker/               # Docker Compose + install script
   supabase/
-    migrations/         # 10 SQL migrations (001-010)
+    migrations/         # 13 SQL migrations (001-013)
     email-templates/    # Branded invite, reset, confirm templates
   scripts/              # Dev utilities (seed, auth test, node setup)
 ```
@@ -228,41 +228,46 @@ Legacy: `marketing/` (CRA standalone) still exists for ReactPress deployment at 
 
 Each app has its own `.env` file (gitignored). Cloud-admin also needs `.env.local` for `NEXT_PUBLIC_*` vars.
 
-- **Cloud**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- **Cloud**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`
+- **Cloud ↔ CORE (admin plane, platform-wide)**: `CORE_API_URL` (defaults to `https://app.inteliflowai.com`), `CORE_PROVISIONING_SECRET` — used by Pulse cloud to provision/revoke per-school Bearer keys on CORE via `POST /api/admin/platform-keys`. Never goes on nodes.
 - **Node services**: `NODE_ID`, `NODE_REGISTRATION_TOKEN`, `CLOUD_API_URL`, `JELLYFIN_BASE_URL`, `JELLYFIN_API_KEY`
-- **CORE integration**: `CORE_API_URL`, `CORE_API_SECRET`, `CORE_LOGIN_TIMEOUT_SECONDS`, `LESSON_COMPLETE_THRESHOLD`
+- **Node ↔ CORE (runtime, per-tenant)**: The Bearer key used on lesson-complete calls is no longer an env var. The cloud pushes the per-tenant `api_key` via `/api/nodes/[nodeId]/config` and the node caches it in `integration_credentials_cache`. `CORE_API_SECRET` on the node is kept as a legacy/dev fallback only.
+- **Node optional**: `CORE_LOGIN_TIMEOUT_SECONDS`, `LESSON_COMPLETE_THRESHOLD`
 - **Sync worker**: `MEDIA_DIR` (can be a network share like `V:/pulse`), `SYNC_BANDWIDTH_LIMIT_MBPS` (0 = unlimited)
+- **Error tracking**: Optional `ERROR_WEBHOOK_URL` — when set, structured JSON error events POST here (with 30/min rate limit + 2s timeout). Falls back to stderr when unset.
 
 ## Database
 
-- **Cloud**: Supabase Postgres with RLS. 10 migrations in `supabase/migrations/` (001-010). Run via SQL Editor.
-  - 001: Initial schema (tenants, sites, nodes, users, classrooms, devices, assets, packages, sync_jobs)
+- **Cloud**: Supabase Postgres with RLS. 13 migrations in `supabase/migrations/` (001-013). Run via SQL Editor.
+  - 001: Initial schema (tenants, sites, nodes, users, classrooms, devices, assets, packages, sync_jobs, audit_logs, software_releases)
   - 005: Curriculum (grades, subjects, terms, class_groups, learning_sequences, quiz_definitions, student_profiles)
   - 006: Notifications + content scheduling
   - 009: Classroom schedules (schedule-based routing with recurrence)
   - 010: Alert subscriptions + permanent enrollment type
+  - 011: `product_licenses` — per-tenant licensing for Pulse/SPARK/CORE/LIFT with plan + seats + expiry
+  - 012: `class_groups.core_class_id` — CORE's canonical class identity stored for quick passthrough
+  - 013: `tenant_integration_credentials` — per-tenant Bearer keys received from CORE when a license is provisioned
 - **Local node**: SQLite via better-sqlite3. Schema auto-created on startup via `initDb()`.
   - Core tables: enrolled_devices, classroom_cache, local_packages, local_assets, student_sessions, conductor_state, local_quiz_attempts, cached_sequences
   - Prompt 10: lesson_completions (with sync_attempts, synced_to_core)
-  - Prompt 11: classroom_schedule_cache, class_group_students_cache
+  - Prompt 11: classroom_schedule_cache, class_group_students_cache (with core_class_id column)
+  - Session A: `integration_credentials_cache` (service → api_key + api_url, pushed from cloud config)
 - **Cleanup**: `GET /api/cron/cleanup-metrics` deletes node_metrics, heartbeat events, and read notifications older than 30 days.
 
 ## Testing
 
 ```bash
-pnpm test                                 # All 151 tests across 4 packages (via turbo)
+pnpm test                                 # All 209 tests across 4 packages (via turbo)
 pnpm test:ci                              # Verbose reporter for CI pipelines
 pnpm test:coverage                        # Generate v8 coverage report
 pnpm --filter @pulse/cloud-admin test     # Run single package tests
 pnpm --filter @pulse/cloud-admin test:watch  # Watch mode for development
 ```
 
-**Test structure (151 tests, 17 files):**
+**Test structure (209 tests across 4 packages):**
 - `packages/shared/__tests__/` — Shared types & constants (10 tests)
-- `apps/cloud-admin/__tests__/` — Legacy API route structure tests (5 tests)
-- `apps/cloud-admin/src/tests/api/` — API route handler tests (77 tests): register, heartbeat, sync enqueue/progress/complete, assets download-url, devices enrollment/revoke/rotate, node config, cron offline-nodes
-- `apps/cloud-admin/src/tests/unit/` — Pure function tests (32 tests): validate, heartbeat-alerts, manifest builder, checksum
-- `apps/node-agent/src/tests/` — Heartbeat payload builder, enrollment rate limiting (13 tests)
+- `apps/cloud-admin/` — 155 tests covering API route handlers (register, heartbeat, sync enqueue/progress/complete, assets download-url, devices enrollment/revoke/rotate, node config, cron offline-nodes, tenant-isolation, node-auth, licenses, license-enforcement, core-credentials), pure functions (validate, heartbeat-alerts, manifest builder, checksum, licenses resolve/usable)
+- `apps/node-agent/src/tests/` — Heartbeat payload builder, enrollment rate limiting, LWW conflict resolution (18 tests)
 - `apps/sync-worker/src/tests/` — Worker cycle, downloader, throttle, integrity check (26 tests)
 
 **Supabase mock layer** (`apps/cloud-admin/src/tests/mocks/supabase.ts`): Chainable query builder that mirrors the real Supabase API (`.from().select().eq().single()` etc). All test data lives in `mockSupabaseData` — use `seedMockData()` in `beforeEach` to set up state, `resetMockData()` clears between tests (automatic via setup.ts). Never hits a real database.
@@ -306,15 +311,61 @@ GitHub Actions pipelines in `.github/workflows/`:
 
 In `apps/node-agent/src/integrations/`:
 - `core-integration.ts` — Import quizzes from CORE, sync results back
-- `spark-integration.ts` — Import interactive assets, report completions
+- `spark-integration.ts` — Interactive assets (stubbed; no SPARK cloud routes built yet)
 - `lms-sync.ts` — Batch sync quiz results + progress to cloud (5-min interval)
 
-CORE handoff (Prompt 10):
-- Pulse fires lesson-complete event when video ends (≥85% watched)
-- CORE owns the quiz: delivers personalized quiz (3 MCQ + 2 OEQ matched to mastery)
-- Offline fallback: Pulse serves 3 MCQ only (no OEQ without CORE's analysis engine)
-- `POST {CORE_API_URL}/api/pulse/lesson-complete` — Pulse→CORE notification
-- `GET /api/pulse/export-classes` �� CORE→Pulse class group import
+### CORE integration — current architecture (per `core/docs/pulse-integration.md`)
+
+**Two-secret architecture:**
+- **`CORE_PROVISIONING_SECRET`** — platform-wide, Vercel env on Pulse cloud only. Pulse uses it to call CORE's `POST /api/admin/platform-keys` when a super_admin provisions a CORE license. Never touches nodes.
+- **Per-tenant Bearer key** — generated by CORE, returned to Pulse, stored in `tenant_integration_credentials`. Pushed to nodes via the config endpoint on every heartbeat cycle. Used as `Authorization: Bearer <key>` on all runtime CORE calls.
+
+**Three-mode quiz handoff** (Pulse sends `student_id`? presence drives CORE's behavior):
+- **`individual`** — student on laptop/home: CORE returns `quiz.quiz_url` with a 15-min signed JWT embedded. Classroom player opens the URL; student lands logged in via CORE's magic-link handoff page.
+- **`class_fanout`** — shared STB: no student_id sent. CORE fans the quiz out to every enrolled student in the class. STB shows a "Quiz posted to CORE — open your device" notice. No redirect.
+- **`pending`** — WAN down or CORE unreachable. Pulse shows "Quiz pending" holding screen. Lesson-complete stays queued locally; `lesson-complete-sync` worker retries every 5 min.
+
+**Who owns what:**
+- CORE owns: quizzes (authored by teacher inside CORE), grading, personalized homework generation (comprehension level + learning style → Learning Strategies + Power Skills), student accounts, classes/rosters
+- Pulse owns: videos, playback, schedules, classroom STB delivery, lesson-complete event firing, per-tenant credential storage, node-side caching
+- The `asset_id → quiz_id` mapping lives in CORE (`pulse_lesson_quiz_map`), seeded by the teacher when authoring a lesson in CORE. Pulse does not generate or pick quizzes.
+
+**Runtime contract:**
+- `POST {CORE_API_URL}/api/attempts/pulse-lesson-complete` — `Authorization: Bearer <per-tenant key>`, `watch_pct` as fraction (0..1), `core_class_id` passed through so CORE doesn't re-resolve Pulse's classroom_id
+- `GET {CORE_API_URL}/api/attempts/pulse/export-classes` — imports CORE classes + students, stored as `class_groups.core_class_id`
+- `POST {CORE_API_URL}/api/admin/platform-keys` — provision/list/delete per-school Bearer keys (cloud-admin only, with `X-Provisioning-Secret`)
+
+**Offline fallback**: Dropped. CORE does adaptive diagnostic scoring that can't be approximated with a local 3-MCQ stub, and injecting fake answers would pollute CORE's dataset. Pending screen is the honest answer.
+
+**Pending on CORE side (blocking `GET /api/videos` teacher UI):**
+- Pulse needs to build `GET /api/videos` so CORE's lesson editor can let teachers pick Pulse videos when mapping to a quiz. Header: `X-Core-Secret` (platform-wide shared secret, different from per-tenant Bearer).
+
+## Company Ops console (super_admin)
+
+Inteliflow staff manage all customers from the `/dashboard/global/*` routes. Layout gates on `super_admin` via `requireRole()`.
+
+- `/dashboard/global/customers` — tenant directory with site/node/user/license tallies + expiring-soon and expired badges. "New Customer" modal creates a tenant + invites an initial `tenant_admin`.
+- `/dashboard/global/customers/[tenantId]` — per-customer detail: licenses, sites, nodes, users, recent activity. "Provision License" modal auto-generates the CORE Bearer key when product=core.
+- `/dashboard/global/licenses` — cross-tenant license inventory with product/status filters.
+- `/dashboard/global/fleet` — aggregate fleet dashboard: total schools, nodes online, storage, latest release rollout, recent alerts. 30-second refresh.
+- `/dashboard/global/monitoring` — per-node fleet monitor (cards + table views).
+- `/dashboard/global/api-test` — super_admin-only API health canary page. Fires 14 safe GET probes in parallel, reports status + latency. Post-deploy smoke test.
+- `/dashboard/global/releases` — software release management.
+- `/dashboard/settings/api-test` — per-role interactive API tester (any authenticated user), filtered to what the caller's role can actually call. Request/body editor + history.
+
+Sidebar is grouped: **Company Ops** (super_admin only) → **Product Access** (customer-side pages) → **General** (Settings + API Test). Items with `productLicense?: Product` are auto-hidden when the tenant has no license, or shown with "expired" / "suspended" badges when present-but-unusable.
+
+### License helpers
+- `lib/licenses.ts` — `hasLicense(supabase, tenantId, product)` returns `active | trial | expired | suspended | missing`; `isLicenseUsable(state)` collapses to boolean. Used to gate `POST /api/class-groups/import-from-core` (402 Payment Required when CORE not licensed).
+- `lib/use-licenses.ts` — React hook for the UI side: `useLicenses()` returns `{ state(p), usable(p), loading }`. During `loading`, treat products as not-usable to avoid flashing gated UI.
+- `lib/core-provisioning.ts` — thin client for CORE's admin endpoints: `provisionPulseKey / deletePulseKey / listPulseKeys`.
+- `lib/audit.ts` — `writeAuditLog(supabase, entry)` helper. Best-effort, non-blocking. Wired into user invite, device revoke/rotate, license provision/revoke/rotate.
+- `lib/cron-auth.ts` — `isCronAuthorized(request)` — timing-safe compare against `CRON_SECRET` (replaces the old service-role-key-as-cron-secret anti-pattern).
+- `lib/node-auth.ts` — `requireNodeToken(request, { expectedNodeId? })` — discriminated-union return so test mocks detect failures. Used by all node-facing routes.
+- `lib/require-super-admin.ts` — same shape as `requireNodeToken`, gates `/dashboard/global/*` API routes.
+
+### License auto-expiry
+`GET /api/cron/expire-licenses` (daily, `CRON_SECRET`-gated) flips any active/trial license whose `expires_at` is in the past to `expired`. Audit-logged per row. Idempotent.
 
 ## Node Agent Features
 
@@ -322,8 +373,11 @@ CORE handoff (Prompt 10):
 - Endpoints: `POST /backup`, `GET /backups`, `POST /restore`, `GET /backup/status`, `POST /backup/verify-latest`
 - Update manager polls cloud every 10 min (`src/update-manager.ts`), respects maintenance windows
 - Heartbeat with system metrics: CPU, memory, disk, sessions, devices (`src/heartbeat.ts`)
-- Lesson-complete event system: fires on video end, syncs to CORE, offline fallback
+- Lesson-complete event system: fires on video end, syncs to CORE, uses per-tenant Bearer key from `integration_credentials_cache` (env-var fallback for dev)
 - Lesson-complete sync worker: retries unsynced completions every 5 min
+- Graceful shutdown: SIGTERM/SIGINT drain the HTTP server and clear intervals before exiting (10s hard-stop backstop)
+- Idempotency middleware (`src/idempotency.ts`): `Idempotency-Key` header or `idempotency_key` body field caches successful responses for 10 min. Wired on `/lesson-complete` and `/quiz/submit`.
+- LWW conflict resolution: `cached_sequences.cloud_updated_at` and `conductor_state.client_updated_at` reject stale writes via timestamp compare
 - Jellyfin webhook handler: PlaybackStop → lesson-complete
 - Schedule resolver: determines what content plays in each classroom based on time
 - Schedule cache: synced from cloud on every heartbeat cycle
