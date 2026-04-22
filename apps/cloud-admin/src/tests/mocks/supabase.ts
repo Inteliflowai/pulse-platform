@@ -78,6 +78,12 @@ function createQueryBuilder(table: string, initialData?: any[]) {
         case 'gte':
           result = result.filter((r) => r[f.col] >= f.val);
           break;
+        case 'not-null':
+          result = result.filter((r) => r[f.col] !== null && r[f.col] !== undefined);
+          break;
+        case 'match':
+          result = result.filter((r) => (f.val as RegExp).test(String(r[f.col] ?? '')));
+          break;
       }
     }
     return result;
@@ -153,6 +159,21 @@ function createQueryBuilder(table: string, initialData?: any[]) {
     },
     gte(col: string, val: any) {
       filters.push({ col, op: 'gte', val });
+      return builder;
+    },
+    // .not('col', 'is', null) → rows where col is not null.
+    not(col: string, op: string, val: any) {
+      if (op === 'is' && val === null) {
+        filters.push({ col, op: 'not-null', val: null });
+      } else if (op === 'eq') {
+        filters.push({ col, op: 'neq', val });
+      }
+      return builder;
+    },
+    ilike(col: string, pattern: string) {
+      // Basic ILIKE: % → .*, case-insensitive match.
+      const rx = new RegExp('^' + pattern.replace(/%/g, '.*') + '$', 'i');
+      filters.push({ col, op: 'match', val: rx });
       return builder;
     },
     order(col: string, opts?: { ascending?: boolean }) {

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Building2, Users, Server, ChevronRight, Search } from 'lucide-react';
+import { Plus, Building2, Users, Server, ChevronRight, Search, AlertTriangle } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -21,6 +21,8 @@ interface Customer {
   nodes_online: number;
   users: number;
   licenses: string[];
+  expiring_soon: { product: string; days: number }[];
+  expired: string[];
 }
 
 const PRODUCT_COLORS: Record<string, string> = {
@@ -162,8 +164,22 @@ export default function CustomersPage() {
                       <span className="inline-flex items-center gap-1"><Server className="h-3 w-3" />{c.nodes_online}/{c.nodes} online</span>
                       <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{c.users} users</span>
                     </div>
-                    <div className="flex gap-1">
-                      {c.licenses.length === 0 ? (
+                    <div className="flex items-center gap-1">
+                      {c.expired.length > 0 && (
+                        <Badge className="bg-red-500/20 text-[10px] text-red-300">
+                          <AlertTriangle className="mr-0.5 inline h-3 w-3" />
+                          {c.expired.length} expired
+                        </Badge>
+                      )}
+                      {c.expiring_soon.length > 0 && (
+                        <Badge
+                          className="bg-yellow-500/20 text-[10px] text-yellow-300"
+                          title={c.expiring_soon.map((e) => `${e.product}: ${e.days}d`).join(', ')}
+                        >
+                          {Math.min(...c.expiring_soon.map((e) => e.days))}d
+                        </Badge>
+                      )}
+                      {c.licenses.length === 0 && c.expired.length === 0 ? (
                         <Badge variant="secondary" className="text-[10px]">no licenses</Badge>
                       ) : (
                         c.licenses.map((p) => (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { hasLicense, isLicenseUsable } from '@/lib/licenses';
 
 /**
  * POST /api/class-groups/import-from-core
@@ -27,6 +28,16 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id)
       .single();
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // License gate: CORE integration requires an active CORE license.
+    const admin0 = createAdminSupabaseClient();
+    const licState = await hasLicense(admin0, profile.tenant_id, 'core');
+    if (!isLicenseUsable(licState)) {
+      return NextResponse.json({
+        error: 'CORE is not licensed for this tenant',
+        license_state: licState,
+      }, { status: 402 });
+    }
 
     // Fetch classes from CORE
     const coreRes = await fetch(`${core_api_url}/api/pulse/export-classes`, {

@@ -26,9 +26,17 @@ export async function GET() {
   ]);
 
   const tenants = tenantsQ.data ?? [];
-  const tallies: Record<string, { sites: number; nodes: number; nodes_online: number; users: number; licenses: string[] }> = {};
+  const tallies: Record<string, {
+    sites: number;
+    nodes: number;
+    nodes_online: number;
+    users: number;
+    licenses: string[];
+    expiring_soon: { product: string; days: number }[];
+    expired: string[];
+  }> = {};
   for (const t of tenants) {
-    tallies[t.id] = { sites: 0, nodes: 0, nodes_online: 0, users: 0, licenses: [] };
+    tallies[t.id] = { sites: 0, nodes: 0, nodes_online: 0, users: 0, licenses: [], expiring_soon: [], expired: [] };
   }
   for (const s of (sitesQ.data ?? [])) if (tallies[s.tenant_id]) tallies[s.tenant_id].sites++;
   for (const n of (nodesQ.data ?? [])) {
@@ -37,12 +45,21 @@ export async function GET() {
     if (n.status === 'active') tallies[n.tenant_id].nodes_online++;
   }
   for (const u of (usersQ.data ?? [])) if (tallies[u.tenant_id]) tallies[u.tenant_id].users++;
+
+  const now = Date.now();
+  const thirtyDaysMs = 30 * 86_400_000;
   for (const l of (licensesQ.data ?? [])) {
     if (!tallies[l.tenant_id]) continue;
-    // Only show an active/trial license as "licensed" in the summary view.
-    const expired = l.expires_at && new Date(l.expires_at).getTime() < Date.now();
-    if ((l.status === 'active' || l.status === 'trial') && !expired) {
+    const expiresAt = l.expires_at ? new Date(l.expires_at).getTime() : null;
+    const isExpired = expiresAt !== null && expiresAt < now;
+    if ((l.status === 'active' || l.status === 'trial') && !isExpired) {
       tallies[l.tenant_id].licenses.push(l.product);
+      if (expiresAt !== null && expiresAt - now < thirtyDaysMs) {
+        const days = Math.max(0, Math.round((expiresAt - now) / 86_400_000));
+        tallies[l.tenant_id].expiring_soon.push({ product: l.product, days });
+      }
+    } else if (isExpired) {
+      tallies[l.tenant_id].expired.push(l.product);
     }
   }
 

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, Check, ArrowRight, Loader2 } from 'lucide-react';
+import { useLicenses } from '@/lib/use-licenses';
 
 const GRADE_BANDS = ['K-2', '3-5', '6-8', '9-12'];
 
@@ -18,11 +19,17 @@ export default function QuickLessonPage() {
   const [classrooms, setClassrooms] = useState<any[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [assetSearch, setAssetSearch] = useState('');
+  const licenseInfo = useLicenses();
+  const coreUsable = licenseInfo.usable('core');
   const [form, setForm] = useState({
     title: '', subject: '', grade_band: '', class_group_id: '',
     classroom_id: '', scheduled_date: '', scheduled_time: '08:00',
-    duration_minutes: 60, lesson_plan_text: '', generate_quiz: true,
+    duration_minutes: 60, lesson_plan_text: '', generate_quiz: false,
   });
+  // Auto-enable quiz generation only if CORE is actually licensed.
+  useEffect(() => {
+    setForm((f) => ({ ...f, generate_quiz: coreUsable && !!f.lesson_plan_text }));
+  }, [coreUsable]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<any>(null);
 
@@ -217,6 +224,27 @@ export default function QuickLessonPage() {
                 </Select>
               </div>
             </div>
+            {coreUsable && (
+              <div className="border-t border-gray-800 pt-4">
+                <Label className="text-xs text-gray-400">Lesson plan (optional — used to generate a CORE quiz)</Label>
+                <textarea
+                  value={form.lesson_plan_text}
+                  onChange={(e) => setForm((f) => ({ ...f, lesson_plan_text: e.target.value, generate_quiz: !!e.target.value }))}
+                  className="mt-1 w-full rounded-md border border-gray-700 bg-brand-bg p-2 text-sm text-gray-200 focus:border-brand-primary focus:outline-none"
+                  rows={4}
+                  placeholder="Paste or outline your lesson plan here. CORE will generate a short quiz for the class."
+                />
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Quiz auto-generation sends the plan to CORE and attaches a quiz to the scheduled sequence.
+                </p>
+              </div>
+            )}
+            {!coreUsable && !licenseInfo.loading && (
+              <div className="rounded-md border border-gray-800 bg-brand-bg/50 p-3 text-xs text-gray-500">
+                Auto-quiz generation requires a CORE license. Contact Inteliflow to add it.
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
               <Button onClick={() => setStep(3)} disabled={!form.title || !form.class_group_id || !form.classroom_id}>

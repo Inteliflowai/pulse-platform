@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { useLicenses } from '@/lib/use-licenses';
+import type { Product } from '@/lib/licenses';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -37,6 +39,13 @@ interface NavItem {
   icon: any;
   roles: string[];
   group: 'company' | 'product' | 'general';
+  /**
+   * If set, this entry is hidden entirely when the tenant has no license
+   * for the product, and shown with a "locked" badge + disabled styling
+   * when the license is expired or suspended. super_admin ignores this
+   * (they need access for support regardless of a tenant's licensing).
+   */
+  productLicense?: Product;
 }
 
 const navItems: NavItem[] = [
@@ -79,7 +88,30 @@ export function Sidebar({ user }: SidebarProps) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
 
-  const filteredNav = navItems.filter((item) => item.roles.includes(user.role));
+  const licenseInfo = useLicenses();
+  const roleFiltered = navItems.filter((item) => item.roles.includes(user.role));
+
+  // License gating: super_admin sees everything for support. Everyone else
+  // sees product-licensed entries only when the license is present (active,
+  // trial, expired, or suspended — we still show expired/suspended so they
+  // know it existed; just with a badge).
+  const filteredNav = roleFiltered.filter((item) => {
+    if (!item.productLicense) return true;
+    if (user.role === 'super_admin') return true;
+    if (licenseInfo.loading) return false;
+    const state = licenseInfo.state(item.productLicense);
+    return state !== 'missing';
+  });
+
+  function lockBadgeForItem(item: NavItem): string | null {
+    if (!item.productLicense || user.role === 'super_admin') return null;
+    const state = licenseInfo.state(item.productLicense);
+    if (state === 'active' || state === 'trial') return null;
+    if (state === 'expired') return 'expired';
+    if (state === 'suspended') return 'suspended';
+    return null;
+  }
+
   // Group by section, preserving the declared order within each group.
   const navByGroup: Record<string, NavItem[]> = { company: [], product: [], general: [] };
   for (const item of filteredNav) navByGroup[item.group].push(item);
@@ -126,19 +158,27 @@ export function Sidebar({ user }: SidebarProps) {
                 )}
                 {items.map((item) => {
                   const active = pathname.startsWith(item.href);
+                  const lock = lockBadgeForItem(item);
                   return (
                     <Link
                       key={item.href}
-                      href={item.href}
+                      href={lock ? '#' : item.href}
+                      onClick={lock ? (e) => e.preventDefault() : undefined}
                       className={cn(
                         'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                        active
-                          ? 'bg-brand-primary/20 text-brand-primary-light'
-                          : 'text-gray-400 hover:bg-brand-bg hover:text-gray-200'
+                        lock
+                          ? 'cursor-not-allowed text-gray-600'
+                          : active
+                            ? 'bg-brand-primary/20 text-brand-primary-light'
+                            : 'text-gray-400 hover:bg-brand-bg hover:text-gray-200'
                       )}
+                      title={lock ? `${item.productLicense?.toUpperCase()} license ${lock}` : undefined}
                     >
                       <item.icon className="h-5 w-5 flex-shrink-0" />
-                      <span>{item.label}</span>
+                      <span className="flex-1">{item.label}</span>
+                      {lock && (
+                        <Badge variant="secondary" className="text-[9px] uppercase">{lock}</Badge>
+                      )}
                     </Link>
                   );
                 })}
