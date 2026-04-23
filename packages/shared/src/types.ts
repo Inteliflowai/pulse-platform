@@ -137,6 +137,7 @@ export interface Asset {
   storage_path: string | null;
   jellyfin_item_id: string | null;
   status: AssetStatus;
+  duration_seconds: number | null;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;

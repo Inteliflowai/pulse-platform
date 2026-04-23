@@ -59,6 +59,7 @@ export const fixtures = {
     storage_path: 'tenant-001/asset-001/lesson-video.mp4',
     jellyfin_item_id: 'jf-item-001',
     status: 'ready',
+    duration_seconds: 540,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,

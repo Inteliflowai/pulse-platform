@@ -230,6 +230,7 @@ Each app has its own `.env` file (gitignored). Cloud-admin also needs `.env.loca
 
 - **Cloud**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`
 - **Cloud ↔ CORE (admin plane, platform-wide)**: `CORE_API_URL` (defaults to `https://app.inteliflowai.com`), `CORE_PROVISIONING_SECRET` — used by Pulse cloud to provision/revoke per-school Bearer keys on CORE via `POST /api/admin/platform-keys`. Never goes on nodes.
+- **CORE → Pulse inbound (platform-wide)**: `CORE_API_SECRET` on Pulse's Vercel env — validates incoming `X-Core-Secret` header on `GET /api/videos` (the video picker CORE's lesson editor calls). Shared verbatim with CORE. **Different scope from the legacy node-side `CORE_API_SECRET`** — node one is outbound (Pulse→CORE, deprecated); Vercel one is inbound (CORE→Pulse). Timing-safe compare; unset = fail closed.
 - **Node services**: `NODE_ID`, `NODE_REGISTRATION_TOKEN`, `CLOUD_API_URL`, `JELLYFIN_BASE_URL`, `JELLYFIN_API_KEY`
 - **Node ↔ CORE (runtime, per-tenant)**: The Bearer key used on lesson-complete calls is no longer an env var. The cloud pushes the per-tenant `api_key` via `/api/nodes/[nodeId]/config` and the node caches it in `integration_credentials_cache`. `CORE_API_SECRET` on the node is kept as a legacy/dev fallback only.
 - **Node optional**: `CORE_LOGIN_TIMEOUT_SECONDS`, `LESSON_COMPLETE_THRESHOLD`
@@ -238,7 +239,7 @@ Each app has its own `.env` file (gitignored). Cloud-admin also needs `.env.loca
 
 ## Database
 
-- **Cloud**: Supabase Postgres with RLS. 13 migrations in `supabase/migrations/` (001-013). Run via SQL Editor.
+- **Cloud**: Supabase Postgres with RLS. 14 migrations in `supabase/migrations/` (001-014). Run via SQL Editor.
   - 001: Initial schema (tenants, sites, nodes, users, classrooms, devices, assets, packages, sync_jobs, audit_logs, software_releases)
   - 005: Curriculum (grades, subjects, terms, class_groups, learning_sequences, quiz_definitions, student_profiles)
   - 006: Notifications + content scheduling
@@ -247,6 +248,7 @@ Each app has its own `.env` file (gitignored). Cloud-admin also needs `.env.loca
   - 011: `product_licenses` — per-tenant licensing for Pulse/SPARK/CORE/LIFT with plan + seats + expiry
   - 012: `class_groups.core_class_id` — CORE's canonical class identity stored for quick passthrough
   - 013: `tenant_integration_credentials` — per-tenant Bearer keys received from CORE when a license is provisioned
+  - 014: `assets.duration_seconds` — captured at upload time for video assets; surfaces in the CORE `GET /api/videos` picker
 - **Local node**: SQLite via better-sqlite3. Schema auto-created on startup via `initDb()`.
   - Core tables: enrolled_devices, classroom_cache, local_packages, local_assets, student_sessions, conductor_state, local_quiz_attempts, cached_sequences
   - Prompt 10: lesson_completions (with sync_attempts, synced_to_core)
@@ -257,16 +259,16 @@ Each app has its own `.env` file (gitignored). Cloud-admin also needs `.env.loca
 ## Testing
 
 ```bash
-pnpm test                                 # All 209 tests across 4 packages (via turbo)
+pnpm test                                 # All 220 tests across 4 packages (via turbo)
 pnpm test:ci                              # Verbose reporter for CI pipelines
 pnpm test:coverage                        # Generate v8 coverage report
 pnpm --filter @pulse/cloud-admin test     # Run single package tests
 pnpm --filter @pulse/cloud-admin test:watch  # Watch mode for development
 ```
 
-**Test structure (209 tests across 4 packages):**
+**Test structure (220 tests across 4 packages):**
 - `packages/shared/__tests__/` — Shared types & constants (10 tests)
-- `apps/cloud-admin/` — 155 tests covering API route handlers (register, heartbeat, sync enqueue/progress/complete, assets download-url, devices enrollment/revoke/rotate, node config, cron offline-nodes, tenant-isolation, node-auth, licenses, license-enforcement, core-credentials), pure functions (validate, heartbeat-alerts, manifest builder, checksum, licenses resolve/usable)
+- `apps/cloud-admin/` — 166 tests covering API route handlers (register, heartbeat, sync enqueue/progress/complete, assets download-url, devices enrollment/revoke/rotate, node config, cron offline-nodes, tenant-isolation, node-auth, licenses, license-enforcement, core-credentials, videos), pure functions (validate, heartbeat-alerts, manifest builder, checksum, licenses resolve/usable)
 - `apps/node-agent/src/tests/` — Heartbeat payload builder, enrollment rate limiting, LWW conflict resolution (18 tests)
 - `apps/sync-worker/src/tests/` — Worker cycle, downloader, throttle, integrity check (26 tests)
 
@@ -337,8 +339,9 @@ In `apps/node-agent/src/integrations/`:
 
 **Offline fallback**: Dropped. CORE does adaptive diagnostic scoring that can't be approximated with a local 3-MCQ stub, and injecting fake answers would pollute CORE's dataset. Pending screen is the honest answer.
 
-**Pending on CORE side (blocking `GET /api/videos` teacher UI):**
-- Pulse needs to build `GET /api/videos` so CORE's lesson editor can let teachers pick Pulse videos when mapping to a quiz. Header: `X-Core-Secret` (platform-wide shared secret, different from per-tenant Bearer).
+**CORE-facing video picker (shipped)**:
+- `GET /api/videos?school_id=<uuid>&q=<search>&limit=100&offset=0` on Pulse cloud. Auth: `X-Core-Secret` header (timing-safe compare against `CORE_API_SECRET` env). Returns `{ videos: [{ asset_id, title, filename, mime_type, size_bytes, duration_seconds, created_at, uploader_email }], total, limit, offset, school: { school_id, name } }`. Filters server-side to `status='ready'` video assets for the tenant (`school_id === tenant_id`). Consumed by CORE's lesson editor so teachers pick a Pulse video by title instead of pasting an `asset_id` into `/platform/pulse-mappings`.
+- Duration is captured client-side at upload time via a hidden `<video>` element (`assets-tab.tsx` `readVideoDuration`). Stored in `assets.duration_seconds` (migration 014). Null is acceptable — non-video uploads, old rows, or videos whose metadata fails to load render without duration.
 
 ## Company Ops console (super_admin)
 

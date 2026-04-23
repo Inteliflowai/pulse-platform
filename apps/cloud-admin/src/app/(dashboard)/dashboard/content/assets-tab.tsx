@@ -126,6 +126,26 @@ export function AssetsTab() {
   );
 }
 
+function readVideoDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      video.removeAttribute('src');
+      video.load();
+    };
+    video.onloadedmetadata = () => {
+      const d = Number.isFinite(video.duration) ? Math.round(video.duration) : null;
+      cleanup();
+      resolve(d);
+    };
+    video.onerror = () => { cleanup(); resolve(null); };
+    video.src = url;
+  });
+}
+
 function UploadZone({ tenantId, onComplete }: { tenantId: string; onComplete: () => void }) {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -150,6 +170,7 @@ function UploadZone({ tenantId, onComplete }: { tenantId: string; onComplete: ()
     for (const file of files) {
       const assetId = crypto.randomUUID();
       const storagePath = `${tenantId}/${assetId}/${file.name}`;
+      const durationSeconds = file.type.startsWith('video/') ? await readVideoDuration(file) : null;
 
       // Create asset row
       await supabase.from('assets').insert({
@@ -161,6 +182,7 @@ function UploadZone({ tenantId, onComplete }: { tenantId: string; onComplete: ()
         mime_type: file.type || 'application/octet-stream',
         size_bytes: file.size,
         storage_path: storagePath,
+        duration_seconds: durationSeconds,
         status: 'pending',
       });
 
