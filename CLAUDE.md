@@ -251,6 +251,7 @@ Each app has its own `.env` file (gitignored). Cloud-admin also needs `.env.loca
   - 012: `class_groups.core_class_id` — CORE's canonical class identity stored for quick passthrough
   - 013: `tenant_integration_credentials` — per-tenant Bearer keys received from CORE when a license is provisioned
   - 014: `assets.duration_seconds` — captured at upload time for video assets; surfaces in the CORE `GET /api/videos` picker
+  - 015: `classrooms.delivery_mode text NOT NULL DEFAULT 'pulse_local' CHECK ('pulse_local' | 'pulse_stb')` — closes the audit-flagged gap; pushed to nodes via the config endpoint and used to drive CORE's three-mode handoff
 - **Local node**: SQLite via better-sqlite3. Schema auto-created on startup via `initDb()`.
   - Core tables: enrolled_devices, classroom_cache, local_packages, local_assets, student_sessions, conductor_state, local_quiz_attempts, cached_sequences
   - Prompt 10: lesson_completions (with sync_attempts, synced_to_core)
@@ -314,9 +315,9 @@ GitHub Actions pipelines in `.github/workflows/`:
 ## Integrations
 
 In `apps/node-agent/src/integrations/`:
-- `core-integration.ts` — Import quizzes from CORE, sync results back
 - `spark-integration.ts` — Interactive assets (stubbed; no SPARK cloud routes built yet)
-- `lms-sync.ts` — Batch sync quiz results + progress to cloud (5-min interval)
+
+The CORE-specific integration code on the node-agent now lives in `lesson-complete.ts` + `lesson-complete-sync.ts` (the runtime contract is fire-and-retry, not a separate module). The earlier `core-integration.ts` (`importCoreQuiz`) and `lms-sync.ts` were deleted in 2026-04-28's audit remediation — CORE owns quizzes and grading, so Pulse-side quiz storage was dead in both worlds.
 
 ### CORE integration — current architecture (per `core/docs/pulse-integration.md`)
 
@@ -334,10 +335,16 @@ In `apps/node-agent/src/integrations/`:
 - Pulse owns: videos, playback, schedules, classroom STB delivery, lesson-complete event firing, per-tenant credential storage, node-side caching
 - The `asset_id → quiz_id` mapping lives in CORE (`pulse_lesson_quiz_map`), seeded by the teacher when authoring a lesson in CORE. Pulse does not generate or pick quizzes.
 
-**Runtime contract:**
-- `POST {CORE_API_URL}/api/attempts/pulse-lesson-complete` — `Authorization: Bearer <per-tenant key>`, `watch_pct` as fraction (0..1), `core_class_id` passed through so CORE doesn't re-resolve Pulse's classroom_id
+**Runtime contract (Pulse → CORE):**
+- `POST {CORE_API_URL}/api/attempts/pulse-lesson-complete` — `Authorization: Bearer <per-tenant key>`, `watch_pct` as fraction (0..1), `core_class_id` and `delivery_mode` (`pulse_local` | `pulse_stb`) passed through so CORE doesn't re-resolve them
 - `GET {CORE_API_URL}/api/attempts/pulse/export-classes` — imports CORE classes + students, stored as `class_groups.core_class_id`
 - `POST {CORE_API_URL}/api/admin/platform-keys` — provision/list/delete per-school Bearer keys (cloud-admin only, with `X-Provisioning-Secret`)
+
+**Operator surface (Pulse-side, shipped 2026-04-28):**
+- `/dashboard/global/customers/[tenantId]` has a "CORE Integration" card — license badge, Bearer key status + preview, "Test connection" button (calls `POST /api/integrations/core/ping`, which probes CORE's export-classes with the cached Bearer and reports ok / unauthorized / unreachable / latency), and "Import classes" button.
+- `POST /api/class-groups/import-from-core` no longer takes `core_api_url`/`core_session_token` in the body — resolves Bearer + URL from `tenant_integration_credentials`. Returns 412 (precondition) when license is OK but no Bearer is provisioned, 402 when no license. Super_admins can pass `tenant_id` in body to act on behalf.
+- `POST /api/integrations/core/webhook` — inbound webhook scaffold for CORE → Pulse events. Auth: `X-Core-Secret` (same env as `/api/videos`). Generic event router with empty handlers map; every event lands in `audit_logs` as `core_webhook.<event_type>`. Recognized-but-unhandled events return 200 + `handled: false` so CORE won't retry. **Add concrete handlers** in `handlers` object when CORE confirms its event catalogue.
+- `scripts/smoke-core.ts` — tsx-runnable end-to-end probe for the three CORE contracts (provisioning, export-classes, lesson-complete). Dry-run by default; `--live` fires real requests against `CORE_API_URL`. Required env for live: `CORE_PROVISIONING_SECRET`, `CORE_BEARER_KEY`, `SMOKE_SCHOOL_ID`, `SMOKE_ASSET_ID`. Use `--skip 1,3` for read-only Bearer verification.
 
 **Offline fallback**: Dropped. CORE does adaptive diagnostic scoring that can't be approximated with a local 3-MCQ stub, and injecting fake answers would pollute CORE's dataset. Pending screen is the honest answer.
 
@@ -361,7 +368,7 @@ Inteliflow staff manage all customers from the `/dashboard/global/*` routes. Lay
 Sidebar is grouped: **Company Ops** (super_admin only) → **Product Access** (customer-side pages) → **General** (Settings + API Test). Items with `productLicense?: Product` are auto-hidden when the tenant has no license, or shown with "expired" / "suspended" badges when present-but-unusable.
 
 ### License helpers
-- `lib/licenses.ts` — `hasLicense(supabase, tenantId, product)` returns `active | trial | expired | suspended | missing`; `isLicenseUsable(state)` collapses to boolean. Used to gate `POST /api/class-groups/import-from-core` (402 Payment Required when CORE not licensed).
+- `lib/licenses.ts` — `hasLicense(supabase, tenantId, product)` returns `active | trial | expired | suspended | missing`; `isLicenseUsable(state)` collapses to boolean. Used to gate `POST /api/class-groups/import-from-core` — 402 (Payment Required) when CORE is not licensed, then 412 (Precondition Failed) if licensed but no Bearer key has been provisioned yet.
 - `lib/use-licenses.ts` — React hook for the UI side: `useLicenses()` returns `{ state(p), usable(p), loading }`. During `loading`, treat products as not-usable to avoid flashing gated UI.
 - `lib/core-provisioning.ts` — thin client for CORE's admin endpoints: `provisionPulseKey / deletePulseKey / listPulseKeys`.
 - `lib/audit.ts` — `writeAuditLog(supabase, entry)` helper. Best-effort, non-blocking. Wired into user invite, device revoke/rotate, license provision/revoke/rotate.
@@ -423,21 +430,27 @@ Sidebar is grouped: **Company Ops** (super_admin only) → **Product Access** (c
 | POST | /backup/verify-latest | none | Verify latest backup integrity |
 | POST | /diagnostics/collect | X-Node-Token | Remote diagnostics collection |
 
-## Audit findings (2026-04-28)
+## Audits (2026-04-28) + remediation
 
-A full read-only cross-surface redundancy audit ran on 2026-04-28. Output at `.audit-report.md` at repo root (~58KB, 12 sections, untracked). Density audit is queued, not yet run. Two findings flagged for promotion to fix but **not yet acted on** — do not silently extend either pattern:
+Two read-only audits ran on 2026-04-28: redundancy (`.audit-report.md`, 12 sections) and density (`.density-report.md`, 14 sections, visual + data lenses). Both reports remain at repo root, untracked. **The reports are point-in-time** — most findings are closed; consult this section, not the raw reports, for current state.
 
-- **`delivery_mode` schema gap**: `apps/node-agent/src/db.ts:36` defines `delivery_mode` on `classroom_cache` SQLite (`pulse_local` / `pulse_stb`), but Supabase `classrooms` has no `delivery_mode` column and the test fixture (`apps/cloud-admin/src/tests/fixtures/index.ts:110`) uses a third spelling (`'individual_devices'`). Shared-STB classrooms cannot signal mode to CORE on lesson-complete because the cloud config endpoint can't push the value.
-- **Cloud-admin pt-BR localization is 0%.** Only `apps/node-agent/src/classroom-player.ts:150-153` has translations (EN/PT/ES inline). Conductor HTML, every dashboard page, the help system, and email templates are hardcoded English. Brazil deployment deadline is end-of-June.
+**Remediated (commits `4cb5e5c` + `5e8a0f3`)** — do not re-derive these as gaps:
+- Critical N+1 on `/dashboard/school/classrooms` device counts → fixed (single `.in()` query).
+- `delivery_mode` schema gap → closed via migration 015; node classroom_cache populated via heartbeat config sync; UI dropdown wired into Create Classroom modal; fixture spelling normalized.
+- Three drift-prone device-count implementations → consolidated behind `GET /api/devices/counts`.
+- Hot paths: `integration_credentials_cache` and `classroom_schedule_cache` resolver now in-memory backed (SQLite remains durable + cold-start store).
+- 28 hardcoded `#6366f1` indigo refs across player + conductor + cloud-admin pages → swept to brand tokens; node-agent inline HTML uses `var(--pulse-primary*)` CSS variables, future rebrand = 3-line change.
+- `useTableInvalidation(['nodes','node_events','sync_jobs'], load)` wired on Monitoring + Global Monitoring (silent no-op fallback if Supabase publication not enabled — confirmed enabled 2026-04-28 for nodes, node_events, sync_jobs, node_metrics, devices, notifications).
+- Tablet column hiding on global monitoring fleet table at <1024px.
+- `<Spinner />` + `<PageSpinner />` components (`src/components/ui/spinner.tsx`) wired into 4 highest-impact pages; 19 other "Loading…" sites remain — sweep on touch.
+- `import-from-core` contract fix: uses cached per-tenant Bearer instead of asking caller for `core_session_token`; new 412 response when license OK but no Bearer.
+- Dead code purged: `apps/node-agent/src/i18n.ts`, `apps/node-agent/src/integrations/core-integration.ts`, `apps/node-agent/src/integrations/lms-sync.ts`, `HeartbeatPayload.sync_status` field, `db.ts:getUnsyncedQuizAttempts/markQuizAttemptsSynced`.
 
-Other notable findings (consult the audit report before extending these surfaces):
-- `HeartbeatPayload.sync_status` (`packages/shared/src/types.ts:298`) is dead — `apps/node-agent/src/heartbeat.ts:96` always sends `'idle'`; cloud never reads it.
-- `apps/node-agent/src/integrations/lms-sync.ts:startLmsSync()` defined, never imported in `index.ts:main()`. `local_quiz_attempts` has no flush path.
-- `apps/node-agent/src/integrations/core-integration.ts:importCoreQuiz` is stale architecture per current CORE contract (CORE owns quizzes; Pulse only stores the asset_id→quiz_id mapping in CORE).
-- `apps/node-agent/src/i18n.ts:getTranslationsJson()` is exported but never imported — dead code; the classroom player uses its own inline EN/PT/ES dict instead.
-- Node-agent inline CSS hardcodes `#6366f1` indigo on Player + Conductor; brand is `#f26522` orange. Likely pre-rebrand vestige.
-- 5-way `enrolled_devices` count fan-out (heartbeat metadata vs three independent queries) — also a query-density issue.
-- `metadata.imported_from='core'` (on `class_groups`) and `quiz_definitions.source` are written but never displayed.
+**Still open / partial:**
+- **pt-BR cloud-admin localization is 0%.** Only `apps/node-agent/src/classroom-player.ts:150-153` has translations (EN/PT/ES inline). Conductor HTML, every dashboard page, the help system, and email templates are hardcoded English. Per pipeline plan: separate Brazil deployment (own domain + Supabase region), not in-app i18n. Brazil deadline end-of-June.
+- `metadata.imported_from='core'` (on `class_groups`) and `quiz_definitions.source` are written but never displayed in the UI — minor.
+- CORE webhook handlers map at `/api/integrations/core/webhook` is empty — scaffold accepts events and audit-logs them, but no concrete handlers exist until CORE confirms its event catalogue.
+- 19 remaining "Loading…" call sites in cloud-admin can use `<Spinner />` / `<PageSpinner />` when next touched.
 
 ## Legal
 
