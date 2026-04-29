@@ -98,7 +98,6 @@ describe('buildHeartbeatPayload()', () => {
     expect(payload).toHaveProperty('storage_used_gb');
     expect(payload).toHaveProperty('storage_total_gb');
     expect(payload).toHaveProperty('active_sessions');
-    expect(payload).toHaveProperty('sync_status');
     expect(payload).toHaveProperty('jellyfin_reachable');
     expect(payload).toHaveProperty('wan_connected');
     expect(payload).toHaveProperty('cpu_usage_pct');

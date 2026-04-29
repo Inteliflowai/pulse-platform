@@ -107,7 +107,7 @@ export const fixtures = {
     node_id: 'node-001',
     name: 'Room 101',
     room_code: 'R101',
-    delivery_mode: 'individual_devices',
+    delivery_mode: 'pulse_local',
     status: 'active',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

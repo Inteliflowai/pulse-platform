@@ -196,7 +196,9 @@ Components in `src/components/help/`:
 Every Supabase query must include a `tenant_id` filter. RLS policies enforce this, but be explicit. All new API routes and schedule queries are tenant-scoped.
 
 ### Real-Time Updates
-`src/lib/realtime.ts` provides `useRealtimeTable()` and `useRealtimeRow()` hooks. Realtime enabled on: nodes, sync_jobs, node_events, node_metrics, devices, notifications.
+`src/lib/realtime.ts` exports three hooks. The Monitoring + Fleet pages use `useTableInvalidation(['nodes','node_events','sync_jobs', ...], load)` — push notifications trigger the page's existing joined `load()` instead of polling alone (the 30s `setInterval` stays as a belt-and-braces fallback). `useRealtimeTable()` and `useRealtimeRow()` are also available but only fit single-table flat-row UIs and are currently unused.
+
+All three hooks wrap `.subscribe()` in a swallowing try/catch — if Supabase Realtime publication isn't enabled for a table, the hook silently no-ops to whatever fallback the caller has. Confirm enabled tables with `SELECT schemaname, tablename FROM pg_publication_tables WHERE pubname = 'supabase_realtime';` — at minimum nodes, node_events, sync_jobs, node_metrics should be there for monitoring to feel live.
 
 ### Brand Theme
 The entire platform uses the Pulse logo's warm color palette:
@@ -420,6 +422,22 @@ Sidebar is grouped: **Company Ops** (super_admin only) → **Product Access** (c
 | GET | /backup/status | none | Backup status with verification |
 | POST | /backup/verify-latest | none | Verify latest backup integrity |
 | POST | /diagnostics/collect | X-Node-Token | Remote diagnostics collection |
+
+## Audit findings (2026-04-28)
+
+A full read-only cross-surface redundancy audit ran on 2026-04-28. Output at `.audit-report.md` at repo root (~58KB, 12 sections, untracked). Density audit is queued, not yet run. Two findings flagged for promotion to fix but **not yet acted on** — do not silently extend either pattern:
+
+- **`delivery_mode` schema gap**: `apps/node-agent/src/db.ts:36` defines `delivery_mode` on `classroom_cache` SQLite (`pulse_local` / `pulse_stb`), but Supabase `classrooms` has no `delivery_mode` column and the test fixture (`apps/cloud-admin/src/tests/fixtures/index.ts:110`) uses a third spelling (`'individual_devices'`). Shared-STB classrooms cannot signal mode to CORE on lesson-complete because the cloud config endpoint can't push the value.
+- **Cloud-admin pt-BR localization is 0%.** Only `apps/node-agent/src/classroom-player.ts:150-153` has translations (EN/PT/ES inline). Conductor HTML, every dashboard page, the help system, and email templates are hardcoded English. Brazil deployment deadline is end-of-June.
+
+Other notable findings (consult the audit report before extending these surfaces):
+- `HeartbeatPayload.sync_status` (`packages/shared/src/types.ts:298`) is dead — `apps/node-agent/src/heartbeat.ts:96` always sends `'idle'`; cloud never reads it.
+- `apps/node-agent/src/integrations/lms-sync.ts:startLmsSync()` defined, never imported in `index.ts:main()`. `local_quiz_attempts` has no flush path.
+- `apps/node-agent/src/integrations/core-integration.ts:importCoreQuiz` is stale architecture per current CORE contract (CORE owns quizzes; Pulse only stores the asset_id→quiz_id mapping in CORE).
+- `apps/node-agent/src/i18n.ts:getTranslationsJson()` is exported but never imported — dead code; the classroom player uses its own inline EN/PT/ES dict instead.
+- Node-agent inline CSS hardcodes `#6366f1` indigo on Player + Conductor; brand is `#f26522` orange. Likely pre-rebrand vestige.
+- 5-way `enrolled_devices` count fan-out (heartbeat metadata vs three independent queries) — also a query-density issue.
+- `metadata.imported_from='core'` (on `class_groups`) and `quiz_definitions.source` are written but never displayed.
 
 ## Legal
 

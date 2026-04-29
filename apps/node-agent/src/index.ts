@@ -13,7 +13,7 @@ import { collectDiagnostics } from './diagnostics';
 import { jellyfinWebhookRouter } from './jellyfin-webhook';
 import { fireLessonComplete, LessonCompletePayload } from './lesson-complete';
 import { startLessonCompleteSync } from './lesson-complete-sync';
-import { getActiveSchedule, getUpcomingSchedule, getAllSchedulesForClassroom } from './schedule-resolver';
+import { getActiveSchedule, getUpcomingSchedule, getAllSchedulesForClassroom, invalidateScheduleCache } from './schedule-resolver';
 import { idempotent } from './idempotency';
 
 interface EnrolledDevice {
@@ -703,26 +703,27 @@ app.get('/conductor', async (req, res) => {
 function renderConductorPage(token: string): string {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Teacher Conductor — Pulse</title>
 <style>
+:root{--pulse-primary:var(--pulse-primary);--pulse-primary-light:var(--pulse-primary-light);--pulse-primary-dark:var(--pulse-primary-dark)}
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1117;color:#e5e7eb;min-height:100vh;overflow-x:hidden}
 .header{background:#1e2130;border-bottom:1px solid #374151;padding:12px 24px;display:flex;align-items:center;gap:10px}
 .header h1{font-size:16px;font-weight:700}.header .sub{font-size:11px;color:#9ca3af;margin-left:auto}
 .content{padding:20px;max-width:800px;margin:0 auto}
 .controls{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}
-.btn{padding:8px 16px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;-webkit-tap-highlight-color:transparent}
-.btn:hover{background:#4f46e5}.btn:active{transform:scale(.97)}
+.btn{padding:8px 16px;background:var(--pulse-primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;-webkit-tap-highlight-color:transparent}
+.btn:hover{background:var(--pulse-primary-dark)}.btn:active{transform:scale(.97)}
 .btn-outline{background:transparent;border:1px solid #4b5563;color:#e5e7eb}
 .btn-danger{background:transparent;border:1px solid #ef4444;color:#ef4444}
 .btn-amber{background:#d97706;color:#fff}
 .item-list{margin:8px 0}
 .item{padding:12px;background:#1e2130;border:1px solid #374151;border-radius:8px;margin:6px 0;display:flex;align-items:center;gap:12px;cursor:pointer}
-.item.active{border-color:#6366f1;background:rgba(99,102,241,.08)}
+.item.active{border-color:var(--pulse-primary);background:rgba(242,101,34,.08)}
 .item-num{width:28px;height:28px;border-radius:50%;background:#374151;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
-.item.active .item-num{background:#6366f1}
+.item.active .item-num{background:var(--pulse-primary)}
 /* Mobile conductor */
 .m-wrap{display:flex;flex-direction:column;height:100vh;height:100dvh}
 .m-top{background:#1e2130;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #374151}
 .m-top .name{font-size:14px;font-weight:700;max-width:50%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.m-top .time{font-size:12px;color:#a5b4fc;font-weight:600}
+.m-top .time{font-size:12px;color:var(--pulse-primary-light);font-weight:600}
 .m-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;touch-action:pan-y}
 .m-icon{font-size:48px;margin-bottom:16px}
 .m-title{font-size:1.4rem;font-weight:700;text-align:center;line-height:1.3;margin-bottom:8px}
@@ -735,7 +736,7 @@ function renderConductorPage(token: string): string {
 .m-btn-end{background:transparent;border:2px solid #ef4444;color:#ef4444}
 .m-dots{display:flex;gap:6px;justify-content:center;padding:12px}
 .m-dot{width:10px;height:10px;border-radius:50%;background:#374151}
-.m-dot.done{background:#6366f1;opacity:.5}.m-dot.act{background:#06b6d4;transform:scale(1.3)}
+.m-dot.done{background:var(--pulse-primary);opacity:.5}.m-dot.act{background:#06b6d4;transform:scale(1.3)}
 .m-stats{display:flex;justify-content:space-around;padding:8px 16px;background:#1e2130;border-top:1px solid #374151;font-size:11px;color:#9ca3af}
 .m-stats span{display:flex;align-items:center;gap:4px}
 @media(min-width:768px){.m-wrap{display:none}}
@@ -743,7 +744,7 @@ function renderConductorPage(token: string): string {
 </style></head><body>
 <!-- Desktop conductor -->
 <div class="d-wrap">
-<div class="header"><div style="width:28px;height:28px;background:#6366f1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff">P</div><h1>Teacher Conductor</h1><div class="sub" id="d-sched"></div></div>
+<div class="header"><div style="width:28px;height:28px;background:var(--pulse-primary);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff">P</div><h1>Teacher Conductor</h1><div class="sub" id="d-sched"></div></div>
 <div class="content" id="d-content"><p style="color:#9ca3af">Loading sequences...</p></div>
 </div>
 <!-- Mobile conductor -->
@@ -797,7 +798,7 @@ function renderDesktop(){
   h+='</div>';
   if(items[currentIdx]){
     var cur=items[currentIdx];
-    h+='<div style="margin-top:16px;padding:16px;background:#1e2130;border:1px solid #6366f1;border-radius:8px"><div style="font-size:12px;color:#9ca3af">Now showing:</div><div style="font-size:16px;font-weight:600;margin-top:4px">'+E(cur.title)+'</div><div style="font-size:12px;color:#9ca3af;margin-top:4px">Type: '+cur.item_type+'</div></div>';
+    h+='<div style="margin-top:16px;padding:16px;background:#1e2130;border:1px solid var(--pulse-primary);border-radius:8px"><div style="font-size:12px;color:#9ca3af">Now showing:</div><div style="font-size:16px;font-weight:600;margin-top:4px">'+E(cur.title)+'</div><div style="font-size:12px;color:#9ca3af;margin-top:4px">Type: '+cur.item_type+'</div></div>';
   }
   ct().innerHTML=h;
 }
@@ -953,6 +954,7 @@ async function syncSchedulesFromCloud(): Promise<void> {
       } catch {}
     }
     deleteScheduleCacheNotIn(ids);
+    invalidateScheduleCache();
 
     // Sync class group students
     const classGroupStudents = config.class_group_students ?? [];
@@ -981,10 +983,18 @@ async function syncSchedulesFromCloud(): Promise<void> {
     }
     try { deleteIntegrationCredentialsNotIn(activeServices); } catch {}
 
-    // Sync maintenance window from node metadata
+    // Sync classroom metadata (delivery_mode in particular — cloud is the
+    // source of truth, but the lesson-complete hot path reads from SQLite).
     const classroomsList = config.classrooms ?? [];
+    for (const c of classroomsList) {
+      try {
+        const mode = c.delivery_mode === 'pulse_stb' ? 'pulse_stb' : 'pulse_local';
+        upsertClassroomCache(c.id, NODE_ID, c.name ?? '', c.room_code ?? '', mode);
+      } catch {}
+    }
+
+    // Sync maintenance window from node metadata
     if (classroomsList.length > 0) {
-      // Maintenance window is stored on the node, check if config includes it
       const mw = config.maintenance_window ?? config.feature_flags?.maintenance_window;
       if (mw) setMaintenanceWindow(mw);
     }

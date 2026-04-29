@@ -295,7 +295,6 @@ export interface HeartbeatPayload {
   storage_used_gb: number;
   storage_total_gb: number;
   active_sessions: number;
-  sync_status: 'idle' | 'syncing' | 'error';
   jellyfin_reachable: boolean;
   wan_connected: boolean;
   cpu_usage_pct: number;

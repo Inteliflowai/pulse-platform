@@ -67,6 +67,52 @@ export function useRealtimeTable<T = any>(
 }
 
 /**
+ * Subscribe to any change on a table and invoke a callback. Use this when
+ * the existing page already does a joined/aggregated `load()` and you just
+ * want a push signal to re-fire it instead of polling on a 30s interval.
+ *
+ * Silently no-ops if Supabase Realtime isn't enabled on the publication for
+ * that table — the page keeps working via whatever fallback (polling, manual
+ * refresh) the caller has set up.
+ */
+export function useTableInvalidation(
+  tables: string | string[],
+  onChange: () => void,
+  filter?: { column: string; value: string }
+) {
+  const supabase = createSupabaseBrowserClient();
+
+  useEffect(() => {
+    const list = Array.isArray(tables) ? tables : [tables];
+    const channels: RealtimeChannel[] = [];
+
+    for (const table of list) {
+      try {
+        const ch = supabase
+          .channel(`pulse-invalidate-${table}-${filter?.value ?? 'all'}`)
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table,
+            ...(filter ? { filter: `${filter.column}=eq.${filter.value}` } : {}),
+          }, () => onChange())
+          .subscribe();
+        channels.push(ch);
+      } catch {
+        // Realtime publication not enabled for this table — stay silent.
+      }
+    }
+
+    return () => {
+      for (const ch of channels) {
+        try { supabase.removeChannel(ch); } catch {}
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Array.isArray(tables) ? tables.join(',') : tables, filter?.value]);
+}
+
+/**
  * Subscribe to a specific row's changes.
  */
 export function useRealtimeRow<T = any>(table: string, id: string) {

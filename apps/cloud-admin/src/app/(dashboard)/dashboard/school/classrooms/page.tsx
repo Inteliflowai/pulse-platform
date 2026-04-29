@@ -20,7 +20,7 @@ export default function ClassroomsPage() {
   const [nodes, setNodes] = useState<any[]>([]);
   const [siteId, setSiteId] = useState('');
   const [tenantId, setTenantId] = useState('');
-  const [form, setForm] = useState({ name: '', room_code: '', node_id: '', capacity: '' });
+  const [form, setForm] = useState({ name: '', room_code: '', node_id: '', capacity: '', delivery_mode: 'pulse_local' });
   const [saving, setSaving] = useState(false);
   const [deviceCounts, setDeviceCounts] = useState<Record<string, number>>({});
 
@@ -40,17 +40,11 @@ export default function ClassroomsPage() {
       .order('name');
     setClassrooms(cls ?? []);
 
-    // Get device counts per classroom
-    const counts: Record<string, number> = {};
-    for (const c of cls ?? []) {
-      const { count } = await supabase
-        .from('devices')
-        .select('id', { count: 'exact', head: true })
-        .eq('classroom_id', c.id)
-        .eq('status', 'enrolled');
-      counts[c.id] = count ?? 0;
+    const countsRes = await fetch('/api/devices/counts');
+    if (countsRes.ok) {
+      const { per_classroom_enrolled } = await countsRes.json();
+      setDeviceCounts(per_classroom_enrolled ?? {});
     }
-    setDeviceCounts(counts);
 
     const { data: n } = await supabase.from('nodes').select('id, name').eq('tenant_id', profile.tenant_id).eq('status', 'active');
     setNodes(n ?? []);
@@ -69,7 +63,7 @@ export default function ClassroomsPage() {
     });
     if (res.ok) {
       setCreateOpen(false);
-      setForm({ name: '', room_code: '', node_id: '', capacity: '' });
+      setForm({ name: '', room_code: '', node_id: '', capacity: '', delivery_mode: 'pulse_local' });
       load();
     }
     setSaving(false);
@@ -109,6 +103,16 @@ export default function ClassroomsPage() {
               <div className="space-y-2">
                 <Label>Capacity</Label>
                 <Input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="e.g. 30" />
+              </div>
+              <div className="space-y-2">
+                <Label>Delivery Mode</Label>
+                <Select value={form.delivery_mode} onValueChange={(v) => setForm({ ...form, delivery_mode: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pulse_local">Personal devices (laptops/tablets)</SelectItem>
+                    <SelectItem value="pulse_stb">Shared STB / classroom TV</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter>

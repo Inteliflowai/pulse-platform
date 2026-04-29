@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { useTableInvalidation } from '@/lib/realtime';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { AlertTriangle, AlertCircle, Info, Server, Wifi, HardDrive } from 'lucide-react';
+import { PageSpinner } from '@/components/ui/spinner';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 
 function severityIcon(severity: string) {
@@ -81,21 +83,18 @@ export default function SchoolMonitoringPage() {
       setSessionsByHour(Object.entries(hourMap).map(([h, c]) => ({ hour: `${h}:00`, count: c })));
     }
 
-    // Device counts
-    const { data: devs } = await supabase.from('devices').select('status').eq('tenant_id', profile.tenant_id);
-    const counts = { enrolled: 0, revoked: 0, pending: 0 };
-    for (const d of devs ?? []) {
-      if (d.status === 'enrolled') counts.enrolled++;
-      else if (d.status === 'revoked') counts.revoked++;
-      else counts.pending++;
+    const countsRes = await fetch('/api/devices/counts');
+    if (countsRes.ok) {
+      const { tenant } = await countsRes.json();
+      setDeviceCounts(tenant ?? { enrolled: 0, revoked: 0, pending: 0 });
     }
-    setDeviceCounts(counts);
     setLoading(false);
   }, [filterSeverity, eventsPage]);
 
   useEffect(() => { load(); const i = setInterval(load, 30000); return () => clearInterval(i); }, [load]);
+  useTableInvalidation(['nodes', 'node_events', 'sync_jobs', 'node_metrics'], load);
 
-  if (loading) return <div className="text-gray-400 py-20 text-center">Loading monitoring...</div>;
+  if (loading) return <PageSpinner label="Loading monitoring data" />;
 
   const completedToday = syncJobs.filter((j) => j.status === 'completed' && new Date(j.completed_at).toDateString() === new Date().toDateString()).length;
   const failedToday = syncJobs.filter((j) => j.status === 'failed' && new Date(j.completed_at ?? j.updated_at).toDateString() === new Date().toDateString()).length;
@@ -158,7 +157,7 @@ export default function SchoolMonitoringPage() {
                   <XAxis dataKey="hour" tick={{ fill: '#9ca3af', fontSize: 10 }} interval={3} />
                   <YAxis tick={{ fill: '#9ca3af', fontSize: 10 }} allowDecimals={false} />
                   <Tooltip contentStyle={{ background: '#1e2130', border: '1px solid #374151', borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="count" fill="#6366f1" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="count" fill="#f26522" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

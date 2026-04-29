@@ -23,8 +23,6 @@ vi.mock('../db', () => ({
   getCachedSequences: vi.fn().mockReturnValue([]),
   getCachedSequence: vi.fn(),
   saveLocalQuizAttempt: vi.fn(),
-  getUnsyncedQuizAttempts: vi.fn().mockReturnValue([]),
-  markQuizAttemptsSynced: vi.fn(),
 }));
 
 vi.mock('../logger', () => ({
@@ -49,11 +47,6 @@ vi.mock('../update-manager', () => ({
 
 vi.mock('../classroom-player', () => ({
   renderClassroomPlayer: () => '<html>player</html>',
-}));
-
-vi.mock('../integrations/lms-sync', () => ({
-  startLmsSync: vi.fn(),
-  queueQuizResult: vi.fn(),
 }));
 
 vi.mock('../env', () => ({

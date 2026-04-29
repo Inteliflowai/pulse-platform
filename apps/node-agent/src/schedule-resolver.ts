@@ -7,6 +7,25 @@
 
 import { getSchedulesForClassroom } from './db';
 
+// Memoize SQLite reads (not resolver output) so /classroom/current-schedule
+// polls don't recompute the disk read every call. Recurrence matching still
+// runs against the current Date on each call.
+const SCHEDULES_TTL_MS = 30_000;
+const schedulesCache = new Map<string, { at: number; rows: any[] }>();
+
+function cachedSchedules(classroomId: string): any[] {
+  const hit = schedulesCache.get(classroomId);
+  if (hit && Date.now() - hit.at < SCHEDULES_TTL_MS) return hit.rows;
+  const rows = getSchedulesForClassroom(classroomId) as any[];
+  schedulesCache.set(classroomId, { at: Date.now(), rows });
+  return rows;
+}
+
+export function invalidateScheduleCache(classroomId?: string) {
+  if (classroomId) schedulesCache.delete(classroomId);
+  else schedulesCache.clear();
+}
+
 export interface ActiveSchedule {
   schedule_id: string;
   classroom_id: string;
@@ -59,7 +78,7 @@ export function getActiveSchedule(classroomId: string, at?: Date): ActiveSchedul
   const todayWeekday = isoWeekday(now);
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-  const schedules = getSchedulesForClassroom(classroomId) as any[];
+  const schedules = cachedSchedules(classroomId);
   const matches: (ActiveSchedule | null)[] = [];
 
   for (const s of schedules) {
@@ -116,7 +135,7 @@ export function getUpcomingSchedule(classroomId: string, withinMinutes: number =
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const windowEnd = currentMinutes + withinMinutes;
 
-  const schedules = getSchedulesForClassroom(classroomId) as any[];
+  const schedules = cachedSchedules(classroomId);
   let best: ActiveSchedule | null = null;
   let bestStart = Infinity;
 
@@ -165,7 +184,7 @@ export function getAllSchedulesForClassroom(classroomId: string, date: Date): Ac
   const day = dateStr(date);
   const dayWeekday = isoWeekday(date);
 
-  const schedules = getSchedulesForClassroom(classroomId) as any[];
+  const schedules = cachedSchedules(classroomId);
   const results: ActiveSchedule[] = [];
 
   for (const s of schedules) {

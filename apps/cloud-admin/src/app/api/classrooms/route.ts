@@ -29,17 +29,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, room_code, node_id, site_id, capacity } = body;
+    const { name, room_code, node_id, site_id, capacity, delivery_mode } = body;
 
     if (!name || !site_id) {
       return NextResponse.json({ error: 'Missing name or site_id' }, { status: 400 });
     }
 
+    const mode = delivery_mode === 'pulse_stb' ? 'pulse_stb' : 'pulse_local';
     const supabase = createAdminSupabaseClient();
 
     const { data, error } = await supabase
       .from('classrooms')
-      .insert({ name, room_code, node_id: node_id || null, site_id, capacity: capacity || null })
+      .insert({ name, room_code, node_id: node_id || null, site_id, capacity: capacity || null, delivery_mode: mode })
       .select()
       .single();
 

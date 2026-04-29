@@ -22,7 +22,6 @@ function validPayload(overrides: Record<string, any> = {}) {
     storage_used_gb: 200,
     storage_total_gb: 1000,
     active_sessions: 5,
-    sync_status: 'idle',
     jellyfin_reachable: true,
     wan_connected: true,
     cpu_usage_pct: 45,

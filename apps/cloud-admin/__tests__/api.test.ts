@@ -43,7 +43,6 @@ describe('Heartbeat Payload Validation', () => {
       storage_used_gb: 10,
       storage_total_gb: 100,
       active_sessions: 0,
-      sync_status: 'idle' as const,
       jellyfin_reachable: true,
       wan_connected: true,
       cpu_usage_pct: 25,
@@ -62,7 +61,6 @@ describe('Heartbeat Payload Validation', () => {
     expect(validPayload.cpu_usage_pct).toBeGreaterThanOrEqual(0);
     expect(validPayload.cpu_usage_pct).toBeLessThanOrEqual(100);
     expect(validPayload.storage_used_gb).toBeLessThanOrEqual(validPayload.storage_total_gb);
-    expect(['idle', 'syncing', 'error']).toContain(validPayload.sync_status);
   });
 
   it('detects storage alerts', () => {

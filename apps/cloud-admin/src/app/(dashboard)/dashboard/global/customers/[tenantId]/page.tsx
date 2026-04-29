@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Building2, Server, Users, ShieldCheck, Clock, Plus } from 'lucide-react';
+import { PageSpinner } from '@/components/ui/spinner';
 
 const PRODUCTS = ['pulse', 'spark', 'core', 'lift'] as const;
 const PLANS = ['trial', 'starter', 'professional', 'enterprise'] as const;
@@ -90,8 +91,13 @@ export default function CustomerDetailPage() {
     if (res.ok) await load();
   }
 
-  if (loading) return <div className="p-6 text-gray-400">Loading…</div>;
-  if (!data) return <div className="p-6 text-red-400">Customer not found.</div>;
+  if (loading) return <PageSpinner label="Loading customer" />;
+  if (!data) return (
+    <div className="p-6 flex flex-col items-start gap-3">
+      <p className="text-red-400">Customer not found.</p>
+      <Button variant="outline" size="sm" onClick={load}>Retry</Button>
+    </div>
+  );
 
   const { tenant, sites, nodes, users, licenses, recent_activity } = data;
   const nodesOnline = nodes.filter((n: any) => n.status === 'active').length;

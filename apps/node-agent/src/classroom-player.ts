@@ -17,10 +17,11 @@ export function renderClassroomPlayer(classroomName: string, token: string, node
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>${classroomName} — Pulse</title>
 <style>
+:root{--pulse-primary:var(--pulse-primary);--pulse-primary-light:var(--pulse-primary-light);--pulse-primary-dark:var(--pulse-primary-dark)}
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1117;color:#e5e7eb;min-height:100vh}
 .hdr{background:#1e2130;border-bottom:1px solid #374151;padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
 .hdr h1{font-size:18px;font-weight:700;color:#fff}.logo{display:flex;align-items:center;gap:10px}
-.li{width:28px;height:28px;background:#6366f1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:14px}
+.li{width:28px;height:28px;background:var(--pulse-primary);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:14px}
 .st{display:flex;align-items:center;gap:8px;font-size:12px;color:#9ca3af}
 .dot{width:8px;height:8px;border-radius:50%}.dot.on{background:#10b981}.dot.off{background:#ef4444}
 .ui{display:flex;align-items:center;gap:8px;font-size:12px;color:#9ca3af}.ui .nm{color:#e5e7eb;font-weight:500}
@@ -30,21 +31,21 @@ export function renderClassroomPlayer(classroomName: string, token: string, node
 .lc{background:#1e2130;border:1px solid #374151;border-radius:16px;padding:40px;max-width:400px;width:100%;text-align:center}
 .lc h2{font-size:22px;margin-bottom:8px}.lc p{color:#9ca3af;font-size:13px;margin-bottom:24px}
 .lc input{width:100%;padding:12px 16px;background:#0f1117;border:1px solid #374151;border-radius:8px;color:#e5e7eb;font-size:14px;margin-bottom:12px;outline:none}
-.lc input:focus{border-color:#6366f1}
+.lc input:focus{border-color:var(--pulse-primary)}
 .sl{max-height:200px;overflow-y:auto;margin:12px 0;text-align:left}
-.si{padding:10px 14px;border-radius:6px;cursor:pointer;transition:all .15s;font-size:13px}.si:hover{background:rgba(99,102,241,.1)}
-.si.sel{background:rgba(99,102,241,.2);border:1px solid #6366f1}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:#6366f1;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s}
-.btn:hover{background:#4f46e5}.btn:disabled{opacity:.5;cursor:not-allowed}
+.si{padding:10px 14px;border-radius:6px;cursor:pointer;transition:all .15s;font-size:13px}.si:hover{background:rgba(242,101,34,.1)}
+.si.sel{background:rgba(242,101,34,.2);border:1px solid var(--pulse-primary)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--pulse-primary);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s}
+.btn:hover{background:var(--pulse-primary-dark)}.btn:disabled{opacity:.5;cursor:not-allowed}
 .bo{background:transparent;border:1px solid #4b5563;color:#e5e7eb}.bo:hover{background:#1e2130}
 .bs{padding:6px 12px;font-size:12px}
-.cb{background:rgba(99,102,241,.15);border:1px solid #6366f1;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
-.cb .lb{font-size:12px;color:#a5b4fc}.cb .tt{font-size:14px;font-weight:600;margin-top:2px}
+.cb{background:rgba(242,101,34,.15);border:1px solid var(--pulse-primary);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.cb .lb{font-size:12px;color:var(--pulse-primary-light)}.cb .tt{font-size:14px;font-weight:600;margin-top:2px}
 .tl{display:flex;gap:4px;margin:16px 0;overflow-x:auto;padding:4px 0}
 .sp{flex:0 0 40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;border:2px solid transparent}
 .sp.video{background:#1e3a5f;color:#60a5fa}.sp.quiz{background:#3f3520;color:#fbbf24}
 .sp.document{background:#1a3a2a;color:#34d399}.sp.break{background:#1e2130;color:#9ca3af}
-.sp.act{border-color:#6366f1;transform:scale(1.1)}.sp.done{opacity:.5}
+.sp.act{border-color:var(--pulse-primary);transform:scale(1.1)}.sp.done{opacity:.5}
 .cn{width:16px;display:flex;align-items:center;justify-content:center;color:#374151}
 .vc{background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9;margin-bottom:16px}
 .vc video{width:100%;height:100%}
@@ -53,22 +54,22 @@ export function renderClassroomPlayer(classroomName: string, token: string, node
 .qu{margin-bottom:20px;padding:16px;background:#0f1117;border-radius:8px;border:1px solid #374151}
 .qx{font-size:14px;margin-bottom:12px;font-weight:500}.qn{font-size:11px;color:#9ca3af;margin-bottom:6px}
 .op{display:flex;align-items:center;gap:10px;padding:10px 12px;margin:4px 0;border-radius:6px;cursor:pointer;transition:all .15s;border:1px solid #374151}
-.op:hover{border-color:#6366f1}.op.sel{background:rgba(99,102,241,.15);border-color:#6366f1}
+.op:hover{border-color:var(--pulse-primary)}.op.sel{background:rgba(242,101,34,.15);border-color:var(--pulse-primary)}
 .or{width:18px;height:18px;border-radius:50%;border:2px solid #4b5563;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.op.sel .or{border-color:#6366f1;background:#6366f1}.op.sel .or::after{content:'';width:6px;height:6px;background:#fff;border-radius:50%}
+.op.sel .or{border-color:var(--pulse-primary);background:var(--pulse-primary)}.op.sel .or::after{content:'';width:6px;height:6px;background:#fff;border-radius:50%}
 .rs{text-align:center;padding:32px}
 .sc{width:120px;height:120px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:20px auto;font-size:32px;font-weight:700}
 .sc.ps{background:rgba(16,185,129,.15);border:3px solid #10b981;color:#10b981}
 .sc.fl{background:rgba(239,68,68,.15);border:3px solid #ef4444;color:#ef4444}
 .tm{background:#3f3520;color:#fbbf24;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
 .pk{background:#1e2130;border:1px solid #374151;border-radius:12px;margin-bottom:16px;overflow:hidden;cursor:pointer;transition:border-color .2s}
-.pk:hover{border-color:#6366f1}.ph{padding:14px 18px;border-bottom:1px solid #374151}.ph h2{font-size:15px;font-weight:600}
+.pk:hover{border-color:var(--pulse-primary)}.ph{padding:14px 18px;border-bottom:1px solid #374151}.ph h2{font-size:15px;font-weight:600}
 .ag{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:14px 18px}
-.ai{background:#0f1117;border:1px solid #374151;border-radius:8px;padding:12px;transition:border-color .2s}.ai:hover{border-color:#6366f1}
+.ai{background:#0f1117;border:1px solid #374151;border-radius:8px;padding:12px;transition:border-color .2s}.ai:hover{border-color:var(--pulse-primary)}
 .em{text-align:center;padding:60px 20px;color:#6b7280}
-.core-redirect{background:#1e2130;border:1px solid #6366f1;border-radius:16px;padding:40px;max-width:500px;margin:60px auto;text-align:center}
+.core-redirect{background:#1e2130;border:1px solid var(--pulse-primary);border-radius:16px;padding:40px;max-width:500px;margin:60px auto;text-align:center}
 .core-redirect h2{font-size:20px;color:#fff;margin-bottom:12px}
-.core-redirect .countdown{font-size:48px;font-weight:700;color:#6366f1;margin:20px 0}
+.core-redirect .countdown{font-size:48px;font-weight:700;color:var(--pulse-primary-light);margin:20px 0}
 .core-redirect p{color:#9ca3af;font-size:14px;margin-bottom:16px}
 .offline-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(239,68,68,.15);border:1px solid #ef4444;color:#ef4444;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-bottom:16px}
 @media(max-width:640px){
@@ -99,8 +100,8 @@ export function renderClassroomPlayer(classroomName: string, token: string, node
 /* Enhanced MCQ buttons */
 .op{min-height:56px;gap:12px;margin:6px 0}
 .op .letter{width:28px;height:28px;border-radius:50%;background:#374151;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
-.op.sel .letter{background:#6366f1;color:#fff}
-@media(hover:none){.op:hover{border-color:#374151}.op:active{border-color:#6366f1;background:rgba(99,102,241,.15)}}
+.op.sel .letter{background:var(--pulse-primary);color:#fff}
+@media(hover:none){.op:hover{border-color:#374151}.op:active{border-color:var(--pulse-primary);background:rgba(242,101,34,.15)}}
 /* Quiz timer fixed */
 .quiz-timer-fixed{position:fixed;top:60px;right:16px;background:#3f3520;color:#fbbf24;padding:6px 16px;border-radius:20px;font-size:14px;font-weight:700;z-index:50;transition:all .3s}
 .quiz-timer-fixed.warn{background:#7c2d12;color:#f97316}
@@ -131,7 +132,7 @@ export function renderClassroomPlayer(classroomName: string, token: string, node
 .a11y-panel h4{font-size:13px;font-weight:600;margin-bottom:8px}
 .a11y-panel .opt{display:flex;gap:4px;margin-bottom:12px}
 .a11y-panel .opt button{flex:1;padding:6px;border:1px solid #374151;background:transparent;color:#e5e7eb;border-radius:6px;font-size:11px;cursor:pointer}
-.a11y-panel .opt button.active{border-color:#6366f1;background:rgba(99,102,241,.15)}
+.a11y-panel .opt button.active{border-color:var(--pulse-primary);background:rgba(242,101,34,.15)}
 /* Font size classes */
 body.fs-sm{font-size:14px}body.fs-md{font-size:16px}body.fs-lg{font-size:19px}body.fs-xl{font-size:22px}
 /* High contrast */
@@ -439,7 +440,7 @@ function showWaitState(){
   var h='<div class="wait-wrap ambient">';
   h+='<div class="wait-clock" id="wait-clock"></div>';
   h+='<h2 style="font-size:18px;margin-bottom:4px">'+E('${classroomName}')+'</h2>';
-  if(SCHED&&SCHED.class_group_name)h+='<p style="color:#a5b4fc;font-size:14px">'+E(SCHED.class_group_name)+'</p>';
+  if(SCHED&&SCHED.class_group_name)h+='<p style="color:var(--pulse-primary-light);font-size:14px">'+E(SCHED.class_group_name)+'</p>';
   if(SCHED&&SCHED.upcoming_class)h+='<div style="background:#1e2130;border:1px solid #374151;border-radius:12px;padding:16px;max-width:300px;margin:24px auto;text-align:left"><div style="font-size:11px;color:#9ca3af">'+t('next')+':</div><div style="font-size:16px;font-weight:600;margin-top:4px">'+E(SCHED.upcoming_class)+'</div><div style="font-size:12px;color:#9ca3af;margin-top:2px">'+SCHED.upcoming_minutes+' min</div></div>';
   h+='<div id="day-sched" class="wait-schedule"></div>';
   h+='</div>';

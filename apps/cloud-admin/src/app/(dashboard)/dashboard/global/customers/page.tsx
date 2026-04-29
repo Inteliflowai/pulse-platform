@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Building2, Users, Server, ChevronRight, Search, AlertTriangle } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 
 interface Customer {
   id: string;
@@ -138,7 +139,7 @@ export default function CustomersPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-sm text-gray-500">Loading…</p>
+            <div className="flex items-center gap-2 text-sm text-gray-500"><Spinner className="h-4 w-4" /> Loading customers…</div>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-gray-500">No customers{filter ? ' match the filter' : ' yet'}.</p>
           ) : (

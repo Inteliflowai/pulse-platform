@@ -3,12 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { useTableInvalidation } from '@/lib/realtime';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Server, Activity, HardDrive, AlertTriangle, AlertCircle, Info, LayoutGrid, TableProperties, Download } from 'lucide-react';
+import { PageSpinner } from '@/components/ui/spinner';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 
 type ViewMode = 'cards' | 'table';
@@ -82,6 +84,7 @@ export default function GlobalMonitoringPage() {
   }, []);
 
   useEffect(() => { load(); const i = setInterval(load, 30000); return () => clearInterval(i); }, [load]);
+  useTableInvalidation(['nodes', 'node_events', 'sync_jobs'], load);
 
   const onlineNodes = nodes.filter((n) => n.status === 'active').length;
   const offlineNodes = nodes.filter((n) => n.status === 'offline').length;
@@ -123,7 +126,7 @@ export default function GlobalMonitoringPage() {
     a.click(); URL.revokeObjectURL(url);
   }
 
-  if (loading) return <div className="text-gray-400 py-20 text-center">Loading monitoring data...</div>;
+  if (loading) return <PageSpinner label="Loading fleet monitoring" />;
 
   return (
     <div className="space-y-6">
@@ -164,15 +167,15 @@ export default function GlobalMonitoringPage() {
               <TableHeader>
                 <TableRow>
                   {[
-                    { key: 'site' as SortKey, label: 'Site' },
-                    { key: 'name' as SortKey, label: 'Node' },
-                    { key: 'status' as SortKey, label: 'Status' },
-                    { key: 'version' as SortKey, label: 'Version' },
-                    { key: 'last_seen' as SortKey, label: 'Last Seen' },
-                    { key: 'storage' as SortKey, label: 'Storage' },
-                    { key: 'sessions' as SortKey, label: 'Devices' },
+                    { key: 'site' as SortKey, label: 'Site', mobileHide: false },
+                    { key: 'name' as SortKey, label: 'Node', mobileHide: false },
+                    { key: 'status' as SortKey, label: 'Status', mobileHide: false },
+                    { key: 'version' as SortKey, label: 'Version', mobileHide: true },
+                    { key: 'last_seen' as SortKey, label: 'Last Seen', mobileHide: true },
+                    { key: 'storage' as SortKey, label: 'Storage', mobileHide: false },
+                    { key: 'sessions' as SortKey, label: 'Devices', mobileHide: false },
                   ].map(col => (
-                    <TableHead key={col.key} className="cursor-pointer hover:text-gray-200 select-none" onClick={() => handleSort(col.key)}>
+                    <TableHead key={col.key} className={`cursor-pointer hover:text-gray-200 select-none ${col.mobileHide ? 'hidden lg:table-cell' : ''}`} onClick={() => handleSort(col.key)}>
                       {col.label} {sortKey === col.key && (sortAsc ? '↑' : '↓')}
                     </TableHead>
                   ))}
@@ -194,8 +197,8 @@ export default function GlobalMonitoringPage() {
                           {node.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{node.version ?? '—'}</TableCell>
-                      <TableCell className={`text-xs ${lastSeenColor}`}>{node.last_seen_at ? relativeTime(node.last_seen_at) : 'never'}</TableCell>
+                      <TableCell className="font-mono text-xs hidden lg:table-cell">{node.version ?? '—'}</TableCell>
+                      <TableCell className={`text-xs hidden lg:table-cell ${lastSeenColor}`}>{node.last_seen_at ? relativeTime(node.last_seen_at) : 'never'}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="h-1.5 w-16 rounded-full bg-gray-700"><div className={`h-1.5 rounded-full ${pct > 85 ? 'bg-red-400' : pct > 70 ? 'bg-yellow-400' : 'bg-emerald-400'}`} style={{ width: `${Math.min(pct, 100)}%` }} /></div>
@@ -236,7 +239,7 @@ export default function GlobalMonitoringPage() {
                       <div className="h-8">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={cpuData}>
-                            <Line type="monotone" dataKey="cpu" stroke="#6366f1" strokeWidth={1.5} dot={false} />
+                            <Line type="monotone" dataKey="cpu" stroke="#f26522" strokeWidth={1.5} dot={false} />
                             <Tooltip content={({ payload }) => payload?.[0] ? <div className="bg-brand-surface border border-gray-700 rounded px-2 py-1 text-xs">CPU: {(payload[0].value as number).toFixed(0)}%</div> : null} />
                           </LineChart>
                         </ResponsiveContainer>

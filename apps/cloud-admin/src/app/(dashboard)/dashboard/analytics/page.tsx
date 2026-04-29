@@ -139,7 +139,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="date" tick={{ fill: '#9ca3af', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} allowDecimals={false} />
                   <Tooltip contentStyle={chartStyle} />
-                  <Area type="monotone" dataKey="count" stroke="#6366f1" fill="rgba(99,102,241,0.2)" name="Sessions" />
+                  <Area type="monotone" dataKey="count" stroke="#f26522" fill="rgba(242,101,34,0.2)" name="Sessions" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -174,7 +174,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="date" tick={{ fill: '#9ca3af', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} domain={[0, 100]} />
                   <Tooltip contentStyle={chartStyle} />
-                  <Line type="monotone" dataKey="avg_score" stroke="#6366f1" name="Avg Score %" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="avg_score" stroke="#f26522" name="Avg Score %" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="pass_rate" stroke="#10b981" name="Pass Rate %" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>

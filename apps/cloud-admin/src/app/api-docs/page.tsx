@@ -13,7 +13,7 @@ export default function ApiDocsPage() {
           .header p { color: #9ca3af; margin-top: 4px; font-size: 14px; }
           .content { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
           .section { margin-bottom: 32px; }
-          .section h2 { font-size: 18px; color: #6366f1; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #374151; }
+          .section h2 { font-size: 18px; color: #f5803e; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #374151; }
           .endpoint { background: #1e2130; border: 1px solid #374151; border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
           .endpoint-header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
           .method { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; min-width: 50px; text-align: center; }

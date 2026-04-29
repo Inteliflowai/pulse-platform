@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { CheckCircle, XCircle, Clock, Users } from 'lucide-react';
 
-const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#6366f1'];
+const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#f26522'];
 
 export default function ResultsPage() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
@@ -132,7 +132,7 @@ export default function ResultsPage() {
                   <XAxis dataKey="range" tick={{ fill: '#9ca3af', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} allowDecimals={false} />
                   <Tooltip contentStyle={{ background: '#1e2130', border: '1px solid #374151', borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" fill="#f26522" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

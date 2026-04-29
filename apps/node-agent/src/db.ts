@@ -221,12 +221,22 @@ export function getClassroomCache(classroomId: string) {
   return db.prepare('SELECT * FROM classroom_cache WHERE classroom_id = ?').get(classroomId) ?? null;
 }
 
-export function upsertClassroomCache(classroomId: string, nodeId: string, name: string, roomCode: string) {
+export function upsertClassroomCache(
+  classroomId: string,
+  nodeId: string,
+  name: string,
+  roomCode: string,
+  deliveryMode: 'pulse_local' | 'pulse_stb' = 'pulse_local'
+) {
   db.prepare(
-    `INSERT INTO classroom_cache (classroom_id, node_id, name, room_code, cached_at)
-     VALUES (?, ?, ?, ?, datetime('now'))
-     ON CONFLICT(classroom_id) DO UPDATE SET name = excluded.name, room_code = excluded.room_code, cached_at = datetime('now')`
-  ).run(classroomId, nodeId, name, roomCode);
+    `INSERT INTO classroom_cache (classroom_id, node_id, name, room_code, delivery_mode, cached_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(classroom_id) DO UPDATE SET
+       name = excluded.name,
+       room_code = excluded.room_code,
+       delivery_mode = excluded.delivery_mode,
+       cached_at = datetime('now')`
+  ).run(classroomId, nodeId, name, roomCode, deliveryMode);
 }
 
 export function getLocalPackages() {
@@ -347,16 +357,6 @@ export function saveLocalQuizAttempt(id: string, quizId: string, studentId: stri
   ).run(id, quizId, studentId, studentName, score, maxScore, percentage, passed ? 1 : 0, JSON.stringify(answers));
 }
 
-export function getUnsyncedQuizAttempts() {
-  return db.prepare('SELECT * FROM local_quiz_attempts WHERE synced_to_cloud = 0').all();
-}
-
-export function markQuizAttemptsSynced(ids: string[]) {
-  if (ids.length === 0) return;
-  const placeholders = ids.map(() => '?').join(',');
-  db.prepare(`UPDATE local_quiz_attempts SET synced_to_cloud = 1 WHERE id IN (${placeholders})`).run(...ids);
-}
-
 // Lesson completions
 export function insertLessonCompletion(
   id: string, nodeId: string, classroomId: string, assetId: string,
@@ -447,6 +447,11 @@ export function getSchedulesForClassroom(classroomId: string): any[] {
 }
 
 // Integration credentials (CORE / SPARK / LIFT Bearer keys pushed from cloud).
+// Every heartbeat tick refreshes these via index.ts; lesson-complete reads on
+// every video end. In-memory cache eliminates the SQLite hit on the hot path —
+// SQLite is the durable backing store for cold-start (before first heartbeat).
+const credentialCache = new Map<string, { api_key: string; api_url: string | null }>();
+
 export function upsertIntegrationCredential(service: string, apiKey: string, apiUrl: string | null) {
   db.prepare(
     `INSERT INTO integration_credentials_cache (service, api_key, api_url, cached_at)
@@ -456,22 +461,29 @@ export function upsertIntegrationCredential(service: string, apiKey: string, api
        api_url=excluded.api_url,
        cached_at=datetime('now')`
   ).run(service, apiKey, apiUrl);
+  credentialCache.set(service, { api_key: apiKey, api_url: apiUrl });
 }
 
 export function getIntegrationCredential(service: string): { api_key: string; api_url: string | null } | null {
+  const cached = credentialCache.get(service);
+  if (cached) return cached;
   const row = db.prepare('SELECT api_key, api_url FROM integration_credentials_cache WHERE service = ?').get(service) as
     | { api_key: string; api_url: string | null }
     | undefined;
+  if (row) credentialCache.set(service, row);
   return row ?? null;
 }
 
 export function deleteIntegrationCredentialsNotIn(services: string[]) {
   if (services.length === 0) {
     db.prepare('DELETE FROM integration_credentials_cache').run();
+    credentialCache.clear();
     return;
   }
   const placeholders = services.map(() => '?').join(',');
   db.prepare(`DELETE FROM integration_credentials_cache WHERE service NOT IN (${placeholders})`).run(...services);
+  const keep = new Set(services);
+  for (const k of credentialCache.keys()) if (!keep.has(k)) credentialCache.delete(k);
 }
 
 export function getAllSchedules(): any[] {

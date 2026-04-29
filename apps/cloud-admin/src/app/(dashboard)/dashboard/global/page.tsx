@@ -15,7 +15,7 @@ export default async function GlobalOverviewPage() {
 
   const [tenantsRes, nodesRes, syncJobsRes] = await Promise.all([
     supabase.from('tenants').select('id', { count: 'exact', head: true }),
-    supabase.from('nodes').select('*'),
+    supabase.from('nodes').select('id, name, site_id, status, version, last_seen_at, storage_used_gb, storage_total_gb'),
     supabase.from('sync_jobs').select('id', { count: 'exact', head: true }).eq('status', 'in_progress'),
   ]);
 

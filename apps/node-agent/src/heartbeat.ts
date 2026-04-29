@@ -93,7 +93,6 @@ export async function buildHeartbeatPayload(): Promise<HeartbeatPayload> {
     storage_used_gb: disk.used,
     storage_total_gb: disk.total,
     active_sessions: activeSessions,
-    sync_status: 'idle',
     jellyfin_reachable: jf.reachable,
     wan_connected: wan,
     cpu_usage_pct: Math.round(cpuUsage * 100) / 100,
