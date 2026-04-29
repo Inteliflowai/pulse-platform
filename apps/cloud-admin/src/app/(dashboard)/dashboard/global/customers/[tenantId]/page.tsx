@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeft, Building2, Server, Users, ShieldCheck, Clock, Plus } from 'lucide-react';
+import { ArrowLeft, Building2, Server, Users, ShieldCheck, Clock, Plus, Activity } from 'lucide-react';
 import { PageSpinner } from '@/components/ui/spinner';
 
 const PRODUCTS = ['pulse', 'spark', 'core', 'lift'] as const;
@@ -48,6 +48,10 @@ export default function CustomerDetailPage() {
   });
   const [provisioning, setProvisioning] = useState(false);
   const [provisionError, setProvisionError] = useState<string | null>(null);
+  const [pingResult, setPingResult] = useState<any>(null);
+  const [pinging, setPinging] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/global/customers/${tenantId}`);
@@ -85,6 +89,41 @@ export default function CustomerDetailPage() {
     }
   }
 
+  async function pingCore() {
+    setPinging(true);
+    setPingResult(null);
+    try {
+      const res = await fetch('/api/integrations/core/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: tenantId }),
+      });
+      setPingResult(await res.json());
+    } catch (err: any) {
+      setPingResult({ ok: false, reason: 'client_error', error: err.message });
+    } finally {
+      setPinging(false);
+    }
+  }
+
+  async function importClasses() {
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await fetch('/api/class-groups/import-from-core', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: tenantId }),
+      });
+      const body = await res.json();
+      setImportResult({ ok: res.ok, status: res.status, ...body });
+    } catch (err: any) {
+      setImportResult({ ok: false, error: err.message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   async function suspend(licenseId: string) {
     if (!confirm('Suspend this license? The customer will lose access immediately.')) return;
     const res = await fetch(`/api/licenses/${licenseId}`, { method: 'DELETE' });
@@ -99,8 +138,10 @@ export default function CustomerDetailPage() {
     </div>
   );
 
-  const { tenant, sites, nodes, users, licenses, recent_activity } = data;
+  const { tenant, sites, nodes, users, licenses, recent_activity, integrations } = data;
   const nodesOnline = nodes.filter((n: any) => n.status === 'active').length;
+  const coreLicense = licenses.find((l: any) => l.product === 'core');
+  const coreCred = integrations?.core ?? null;
 
   return (
     <div className="mx-auto max-w-7xl space-y-4 p-6">
@@ -212,6 +253,80 @@ export default function CustomerDetailPage() {
                 </div>
               ))}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* CORE Integration */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Activity className="h-4 w-4" /> CORE Integration
+          </CardTitle>
+          {coreCred && coreLicense && (
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={pingCore} disabled={pinging}>
+                {pinging ? 'Testing…' : 'Test connection'}
+              </Button>
+              <Button size="sm" variant="outline" onClick={importClasses} disabled={importing}>
+                {importing ? 'Importing…' : 'Import classes'}
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-3 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-gray-500">License:</span>
+            {coreLicense ? (
+              <Badge className={licenseBadgeTone(coreLicense.status, coreLicense.expires_at)}>
+                {coreLicense.status}{coreLicense.expires_at ? ` · expires ${new Date(coreLicense.expires_at).toLocaleDateString()}` : ' · perpetual'}
+              </Badge>
+            ) : (
+              <Badge className="bg-gray-500/20 text-gray-400">not licensed</Badge>
+            )}
+
+            <span className="ml-4 text-gray-500">Credential:</span>
+            {coreCred ? (
+              <>
+                <Badge className={coreCred.status === 'active' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-yellow-500/20 text-yellow-300'}>
+                  {coreCred.status}
+                </Badge>
+                <code className="font-mono text-gray-400">{coreCred.key_preview}</code>
+                <span className="text-gray-500">issued {new Date(coreCred.created_at).toLocaleDateString()}</span>
+              </>
+            ) : (
+              <Badge className="bg-gray-500/20 text-gray-400">no Bearer key provisioned</Badge>
+            )}
+          </div>
+
+          {coreCred?.api_url && (
+            <div className="text-gray-500">
+              CORE API URL: <code className="font-mono text-gray-300">{coreCred.api_url}</code>
+            </div>
+          )}
+
+          {pingResult && (
+            <div className={`rounded-md border px-3 py-2 ${pingResult.ok ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300' : 'border-red-500/30 bg-red-500/5 text-red-300'}`}>
+              {pingResult.ok ? (
+                <>✓ CORE responded in {pingResult.latency_ms}ms (HTTP {pingResult.http_status})</>
+              ) : (
+                <>✗ {pingResult.reason}{pingResult.http_status ? ` · HTTP ${pingResult.http_status}` : ''}{pingResult.error ? ` · ${pingResult.error}` : ''}</>
+              )}
+            </div>
+          )}
+
+          {importResult && (
+            <div className={`rounded-md border px-3 py-2 ${importResult.ok ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300' : 'border-red-500/30 bg-red-500/5 text-red-300'}`}>
+              {importResult.ok ? (
+                <>✓ Imported {importResult.imported} new class(es), updated {importResult.updated} existing — {importResult.total} total returned by CORE</>
+              ) : (
+                <>✗ {importResult.error ?? 'Import failed'}{importResult.http_status ? ` · CORE HTTP ${importResult.http_status}` : ''}</>
+              )}
+            </div>
+          )}
+
+          {!coreLicense && !coreCred && (
+            <p className="text-gray-500">No CORE integration set up for this tenant. Provision a CORE license above to auto-generate a Bearer key.</p>
           )}
         </CardContent>
       </Card>

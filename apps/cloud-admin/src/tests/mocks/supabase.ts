@@ -22,6 +22,8 @@ export const mockSupabaseData: Record<string, any[]> = {
   pulse_quiz_results: [],
   package_assets: [],
   notifications: [],
+  product_licenses: [],
+  tenant_integration_credentials: [],
 };
 
 export function resetMockData() {

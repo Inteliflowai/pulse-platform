@@ -3,20 +3,22 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { hasLicense, isLicenseUsable } from '@/lib/licenses';
 
+const CORE_API_URL_DEFAULT = process.env.CORE_API_URL ?? 'https://app.inteliflowai.com';
+
 /**
  * POST /api/class-groups/import-from-core
- * Import class groups and students from CORE.
+ * Import class groups and students from CORE using the per-tenant cached
+ * Bearer key (provisioned via /api/admin/platform-keys when the CORE license
+ * was created). The previous contract asked the caller to pass a session
+ * token in the body — that's been removed; tenant_integration_credentials
+ * is the single source of truth.
  *
- * Body: { core_api_url, core_session_token, class_ids?: string[] }
+ * Body: { tenant_id?: string (super_admin only), class_ids?: string[] }
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { core_api_url, core_session_token, class_ids } = body;
-
-    if (!core_api_url || !core_session_token) {
-      return NextResponse.json({ error: 'Missing core_api_url or core_session_token' }, { status: 400 });
-    }
+    const body = await request.json().catch(() => ({}));
+    const { class_ids, tenant_id: explicitTenantId } = body;
 
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -24,14 +26,18 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from('users')
-      .select('tenant_id, site_id')
+      .select('tenant_id, site_id, role')
       .eq('id', user.id)
       .single();
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // License gate: CORE integration requires an active CORE license.
+    // Super-admins can act on behalf of any tenant; everyone else gets their own.
+    const targetTenantId = (profile.role === 'super_admin' && explicitTenantId)
+      ? explicitTenantId
+      : profile.tenant_id;
+
     const admin0 = createAdminSupabaseClient();
-    const licState = await hasLicense(admin0, profile.tenant_id, 'core');
+    const licState = await hasLicense(admin0, targetTenantId, 'core');
     if (!isLicenseUsable(licState)) {
       return NextResponse.json({
         error: 'CORE is not licensed for this tenant',
@@ -39,17 +45,34 @@ export async function POST(request: NextRequest) {
       }, { status: 402 });
     }
 
-    // Fetch classes from CORE
-    const coreRes = await fetch(`${core_api_url}/api/pulse/export-classes`, {
+    // Resolve the per-tenant CORE Bearer from cached credentials.
+    const { data: cred } = await admin0
+      .from('tenant_integration_credentials')
+      .select('api_key, api_url, status')
+      .eq('tenant_id', targetTenantId)
+      .eq('service', 'core')
+      .maybeSingle();
+
+    if (!cred?.api_key || cred.status !== 'active') {
+      return NextResponse.json({
+        error: 'No active CORE Bearer key for this tenant. Provision a CORE license first.',
+      }, { status: 412 });
+    }
+
+    const coreApiUrl = cred.api_url || CORE_API_URL_DEFAULT;
+    const coreRes = await fetch(`${coreApiUrl}/api/attempts/pulse/export-classes`, {
       headers: {
-        'Authorization': `Bearer ${core_session_token}`,
+        'Authorization': `Bearer ${cred.api_key}`,
         'Content-Type': 'application/json',
       },
       signal: AbortSignal.timeout(15_000),
     });
 
     if (!coreRes.ok) {
-      return NextResponse.json({ error: 'Failed to fetch classes from CORE' }, { status: 502 });
+      return NextResponse.json({
+        error: 'CORE rejected the export request',
+        http_status: coreRes.status,
+      }, { status: coreRes.status === 401 || coreRes.status === 403 ? 502 : 502 });
     }
 
     const coreData = await coreRes.json() as any;
@@ -71,7 +94,7 @@ export async function POST(request: NextRequest) {
         const { data: grade } = await admin
           .from('grades')
           .select('id')
-          .eq('tenant_id', profile.tenant_id)
+          .eq('tenant_id', targetTenantId)
           .ilike('name', cls.grade)
           .limit(1)
           .single();
@@ -84,7 +107,7 @@ export async function POST(request: NextRequest) {
         const { data: subject } = await admin
           .from('subjects')
           .select('id')
-          .eq('tenant_id', profile.tenant_id)
+          .eq('tenant_id', targetTenantId)
           .ilike('name', cls.subject)
           .limit(1)
           .single();
@@ -97,7 +120,7 @@ export async function POST(request: NextRequest) {
       const { data: existing } = await admin
         .from('class_groups')
         .select('id')
-        .eq('tenant_id', profile.tenant_id)
+        .eq('tenant_id', targetTenantId)
         .eq('name', cls.name)
         .eq('grade_id', gradeId)
         .eq('subject_id', subjectId)
@@ -127,7 +150,7 @@ export async function POST(request: NextRequest) {
         const { data: newGroup, error } = await admin
           .from('class_groups')
           .insert({
-            tenant_id: profile.tenant_id,
+            tenant_id: targetTenantId,
             site_id: profile.site_id,
             grade_id: gradeId,
             subject_id: subjectId,
@@ -152,7 +175,7 @@ export async function POST(request: NextRequest) {
         const { data: existingStudent } = await admin
           .from('student_profiles')
           .select('id, user_id')
-          .eq('tenant_id', profile.tenant_id)
+          .eq('tenant_id', targetTenantId)
           .eq('student_number', student.student_number ?? student.id)
           .limit(1)
           .single();

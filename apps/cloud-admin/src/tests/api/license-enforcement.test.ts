@@ -35,10 +35,7 @@ describe('CORE import license gate', () => {
   });
 
   it('rejects with 402 when CORE is not licensed', async () => {
-    const res = await importPOST(post('http://localhost/api/class-groups/import-from-core', {
-      core_api_url: 'http://core.test',
-      core_session_token: 'tok',
-    }));
+    const res = await importPOST(post('http://localhost/api/class-groups/import-from-core', {}));
     expect(res.status).toBe(402);
     const body = await res.json();
     expect(body.license_state).toBe('missing');
@@ -48,10 +45,7 @@ describe('CORE import license gate', () => {
     seedMockData({
       product_licenses: [{ id: 'lic', tenant_id: 'tenant-A', product: 'core', status: 'suspended', expires_at: null } as any],
     });
-    const res = await importPOST(post('http://localhost/api/class-groups/import-from-core', {
-      core_api_url: 'http://core.test',
-      core_session_token: 'tok',
-    }));
+    const res = await importPOST(post('http://localhost/api/class-groups/import-from-core', {}));
     expect(res.status).toBe(402);
   });
 
@@ -60,26 +54,35 @@ describe('CORE import license gate', () => {
     seedMockData({
       product_licenses: [{ id: 'lic', tenant_id: 'tenant-A', product: 'core', status: 'active', expires_at: past } as any],
     });
-    const res = await importPOST(post('http://localhost/api/class-groups/import-from-core', {
-      core_api_url: 'http://core.test',
-      core_session_token: 'tok',
-    }));
+    const res = await importPOST(post('http://localhost/api/class-groups/import-from-core', {}));
     expect(res.status).toBe(402);
   });
 
-  it('passes the gate when CORE is actively licensed (trial counts)', async () => {
+  it('rejects with 412 when CORE is licensed but no Bearer key is provisioned', async () => {
     seedMockData({
       product_licenses: [{ id: 'lic', tenant_id: 'tenant-A', product: 'core', status: 'trial', expires_at: null } as any],
+    });
+    const res = await importPOST(post('http://localhost/api/class-groups/import-from-core', {}));
+    expect(res.status).toBe(412);
+  });
+
+  it('passes the gate when CORE is licensed AND Bearer key is active (trial counts)', async () => {
+    seedMockData({
+      product_licenses: [{ id: 'lic', tenant_id: 'tenant-A', product: 'core', status: 'trial', expires_at: null } as any],
+      tenant_integration_credentials: [{ tenant_id: 'tenant-A', service: 'core', api_key: 'core-bearer-xyz', api_url: 'http://core.test', status: 'active' } as any],
     });
     // Stub the CORE fetch so we don't actually hit the network.
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ classes: [] }), { status: 200 }) as any,
     );
-    const res = await importPOST(post('http://localhost/api/class-groups/import-from-core', {
-      core_api_url: 'http://core.test',
-      core_session_token: 'tok',
-    }));
+    const res = await importPOST(post('http://localhost/api/class-groups/import-from-core', {}));
     expect(res.status).toBe(200);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://core.test/api/attempts/pulse/export-classes',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Bearer core-bearer-xyz' }),
+      }),
+    );
     fetchSpy.mockRestore();
   });
 });
